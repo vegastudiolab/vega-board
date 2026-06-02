@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>vega studio · command center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --grad:radial-gradient(ellipse at 50% 0%, #0077CC 0%, #0099DD 18%, #44BBDD 36%, #88CCDD 52%, #BBDDDD 66%, #DDE4DC 82%, #E8E4DC 100%);
+  --font:'Plus Jakarta Sans',sans-serif;
+  --glass:rgba(255,255,255,0.12); --glass2:rgba(255,255,255,0.18);
+  --border:rgba(255,255,255,0.22); --shadow:0 8px 32px rgba(0,0,0,0.14);
+  --ink:#10243a; --muted:rgba(16,36,58,0.62); --faint:rgba(16,36,58,0.4);
+  --in:#119a55; --out:#c87a00; --t:340ms ease-out;
+}
+html,body{width:100%;min-height:100%;font-family:var(--font);-webkit-font-smoothing:antialiased;color:var(--ink)}
+body{background:#0a0a0a;position:relative}
+#bg{position:fixed;inset:0;background:var(--grad);z-index:0}
+#bg::after{content:"";position:fixed;inset:0;background:radial-gradient(ellipse at 80% 90%, rgba(255,255,255,.25), transparent 60%)}
+#app{position:relative;z-index:1;max-width:1320px;margin:0 auto;padding:26px 26px 80px}
+
+header.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{width:50px;height:50px;display:grid;place-items:center;flex:none}
+.mark img{width:50px;height:50px;object-fit:contain;filter:drop-shadow(0 2px 10px rgba(0,0,0,.28))}
+.brand h1{font-size:20px;font-weight:700;color:#fff;letter-spacing:.2px;text-transform:lowercase}
+.brand p{font-size:12px;color:rgba(255,255,255,.7);text-transform:lowercase}
+.topright{display:flex;align-items:center;gap:12px}
+.clock{text-align:right;color:#fff}.clock b{font-size:15px;font-weight:600}.clock span{display:block;font-size:12px;color:rgba(255,255,255,.7)}
+
+nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+.tab{padding:10px 16px;border-radius:999px;background:var(--glass);border:1px solid var(--border);
+  color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:var(--t);backdrop-filter:blur(14px);text-transform:lowercase;white-space:nowrap}
+.tab:hover{background:var(--glass2);transform:translateY(-1px)}
+.tab.on{background:#fff;color:#0077CC}
+.tab .ct{margin-left:7px;opacity:.7;font-weight:700}
+
+.card{background:var(--glass);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);padding:20px}
+.section{display:none}.section.on{display:block;animation:fade .4s ease-out}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+h2.sec{color:#fff;font-size:15px;font-weight:700;margin:6px 2px 14px;text-transform:lowercase;letter-spacing:.3px}
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.kpi b{display:block;font-size:27px;font-weight:800;color:#fff;line-height:1.1}
+.kpi span{font-size:12px;color:rgba(255,255,255,.78);text-transform:lowercase}
+.kpi small{font-size:11px;color:rgba(255,255,255,.6)}
+.kpi.in b{color:#d6ffe8}.kpi.out b{color:#ffe8cf}
+
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:lowercase}
+.tag{display:inline-block;padding:2px 9px;border-radius:8px;font-size:11px;font-weight:700;background:rgba(0,119,204,.12);color:#0a4f86;text-transform:lowercase}
+.p-new{background:#e8f4ff;color:#0a6cff}.p-qualified{background:#e6f7ee;color:#119a55}
+.p-proposal-sent{background:#fff3e0;color:#c87a00}.p-won{background:#e6f7ee;color:#0a8a44}.p-lost{background:#fde8e8;color:#c0392b}
+.u-100,.u-90{background:#fde2e2;color:#c0392b}.u-75{background:#ffe9d6;color:#cc6600}
+.u-55{background:#fff6d6;color:#a98400}.u-35{background:#e9f6e3;color:#3f8f2e}.u-15{background:#eef1f5;color:#5b6b7d}
+.st-done{background:#e6f7ee;color:#119a55}.st-todo{background:#eef1f5;color:#5b6b7d}.st-doing{background:#e8f4ff;color:#0a6cff}
+.stg-discovery{background:#ede7ff;color:#6a4bd6}.stg-in-progress{background:#e8f4ff;color:#0a6cff}
+.stg-pending-payment{background:#fff3e0;color:#c87a00}.stg-done{background:#e6f7ee;color:#119a55}
+.money-in{color:var(--in)}.money-out{color:var(--out)}
+
+.row{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:13px;background:rgba(255,255,255,.5);margin-bottom:8px;transition:var(--t)}
+.row:hover{background:rgba(255,255,255,.72)}
+.row .t{flex:1;font-size:13.5px;font-weight:600}
+.row .m{font-size:12px;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.bar{height:6px;border-radius:6px;background:rgba(255,255,255,.45);overflow:hidden}
+.bar i{display:block;height:100%}
+.bar.inbar i{background:linear-gradient(90deg,#0a8a44,#5bd99a)}
+.bar.outbar i{background:linear-gradient(90deg,#c87a00,#ffc06b)}
+.bar i.blue{background:linear-gradient(90deg,#0077CC,#44BBDD)}
+
+.cards{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.lead h3,.pj h3{font-size:15px;font-weight:700;margin-bottom:4px}
+.lead p{font-size:12.5px;color:var(--muted);margin-bottom:8px}
+.na{font-size:12px;background:rgba(255,255,255,.55);border-radius:10px;padding:8px 10px;margin-top:8px}
+.na b{font-weight:700}
+
+.kan{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.col h4{color:#fff;font-size:12.5px;font-weight:700;text-transform:lowercase;margin-bottom:10px;display:flex;justify-content:space-between}
+.col .stack{display:flex;flex-direction:column;gap:10px;min-height:120px;border-radius:16px;padding:4px;transition:var(--t)}
+.col .stack.over{background:rgba(255,255,255,.16);outline:2px dashed rgba(255,255,255,.5)}
+.pj{cursor:grab;padding:14px;background:rgba(255,255,255,.55);border-radius:16px}
+.pj:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.pj.dragging{opacity:.4}
+.pj p{font-size:12.5px;color:var(--muted)}
+.pj .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.mini{font-size:11px;color:var(--muted)}
+
+.tl{display:flex;gap:0;align-items:flex-start;overflow-x:auto;padding:6px 0 2px}
+.tl .node{flex:none;width:130px;text-align:center;position:relative}
+.tl .node::before{content:"";position:absolute;top:7px;left:50%;width:100%;height:2px;background:rgba(16,36,58,.18)}
+.tl .node:last-child::before{display:none}
+.tl .node .c{width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid #88CCDD;margin:0 auto 7px;position:relative;z-index:1}
+.tl .node.done .c{background:#119a55;border-color:#119a55}.tl .node.active .c{background:#0077CC;border-color:#0077CC;box-shadow:0 0 0 5px rgba(0,119,204,.22)}
+.tl .node .lbl{font-size:11px;font-weight:600;padding:0 6px}.tl .node .dt{font-size:10.5px;color:var(--muted)}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.25)}
+th{font-size:11px;text-transform:lowercase;color:var(--muted);font-weight:700}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+
+button.btn,a.btn{display:inline-block;border:none;cursor:pointer;background:#fff;color:#0077CC;font-weight:700;font-size:12.5px;
+  padding:9px 14px;border-radius:11px;text-decoration:none;transition:var(--t);text-transform:lowercase}
+button.btn:hover,a.btn:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+button.btn.ghost,a.btn.ghost{background:var(--glass2);color:#fff;border:1px solid var(--border)}
+button.btn.sm{padding:6px 11px;font-size:11.5px;border-radius:9px}
+input,select,textarea{font-family:var(--font);width:100%;padding:9px 11px;border-radius:10px;border:1px solid var(--border);
+  background:rgba(255,255,255,.78);font-size:13px;color:var(--ink);margin-top:6px}
+textarea{min-height:90px;resize:vertical}
+label.fl{font-size:12px;font-weight:600;text-transform:lowercase;display:block;margin-top:12px}
+.inline{display:flex;gap:8px;align-items:flex-end}.inline>*{margin-top:0}
+.check{width:18px;height:18px;cursor:pointer;accent-color:#0077CC;flex:none}
+
+.modal{position:fixed;inset:0;background:rgba(8,20,34,.55);z-index:50;display:none;align-items:flex-start;justify-content:center;padding:40px 18px;overflow:auto}
+.modal.on{display:flex}
+.sheet{max-width:980px;width:100%;background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(245,250,252,.94));
+  border-radius:22px;padding:26px;box-shadow:0 20px 60px rgba(0,0,0,.35);animation:fade .3s ease-out}
+.sheet .x{float:right;cursor:pointer;font-size:22px;color:var(--faint);font-weight:700;line-height:1}
+.sheet h2{font-size:20px;font-weight:800;margin-bottom:2px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.box{background:rgba(255,255,255,.6);border-radius:14px;padding:14px}
+.box h5{font-size:12px;text-transform:lowercase;color:var(--muted);margin-bottom:9px;font-weight:700;display:flex;justify-content:space-between}
+.muted{color:var(--muted)} .fw{grid-column:1/-1}
+.fin{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.fin .cell{background:rgba(255,255,255,.7);border-radius:11px;padding:10px 12px}
+.fin .cell b{font-size:18px;display:block}.fin .cell span{font-size:11px;text-transform:lowercase;color:var(--muted)}
+.note{background:rgba(0,119,204,.08);border:1px solid rgba(0,119,204,.2);border-radius:12px;padding:11px 13px;font-size:12.5px;color:#0a4f86;margin-top:10px}
+.codeout{white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:#0e2236;color:#cfe7ff;border-radius:12px;padding:14px;margin-top:12px;max-height:340px;overflow:auto}
+.empty{color:rgba(255,255,255,.7);font-size:13px;padding:14px;text-align:center}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.calhead b{font-size:13px;text-transform:lowercase}
+.calnav{cursor:pointer;width:26px;height:26px;display:grid;place-items:center;border-radius:8px;background:rgba(255,255,255,.5);font-weight:700;color:#0077CC;user-select:none}
+.calnav:hover{background:#fff}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.caldow{font-size:10px;text-transform:lowercase;color:var(--muted);text-align:center;font-weight:700;padding-bottom:2px}
+.calcell{min-height:44px;border-radius:9px;background:rgba(255,255,255,.42);padding:4px 5px;cursor:pointer;transition:.18s;overflow:hidden}
+.calcell:hover{background:rgba(255,255,255,.72)}
+.calcell.empty{background:transparent;cursor:default}
+.calcell.today{outline:2px solid #0077CC;outline-offset:-2px}
+.calcell.sel{background:#fff;box-shadow:var(--shadow)}
+.calcell .dnum{font-weight:700;font-size:11px;color:var(--ink)}
+.caldots{display:flex;gap:2px;flex-wrap:wrap;margin-top:3px}
+.caldot{width:6px;height:6px;border-radius:50%;flex:none}
+.calmore{font-size:9px;color:var(--muted)}
+@media(max-width:900px){.kan{grid-template-columns:1fr 1fr}.split{grid-template-columns:1fr}}
+@media(max-width:560px){.kan{grid-template-columns:1fr}}
+.ov-split{grid-template-columns:1.4fr 1fr}
+.two{grid-template-columns:1fr 1fr}
+@media(max-width:820px){.ov-split,.two{grid-template-columns:1fr}#app{padding:18px 14px 72px}.tl .node{width:112px}}
+@media(max-width:560px){
+  .row{flex-wrap:wrap}.inline{flex-wrap:wrap}.fin{grid-template-columns:1fr}
+  .sheet{padding:18px;border-radius:18px}.modal{padding:16px 8px}
+  .brand h1{font-size:18px}.brand p{font-size:11px}.clock{display:none}
+  .kpi b{font-size:23px}.calcell{min-height:36px;padding:3px 4px}.caldow{font-size:9px}
+  .tab{padding:8px 13px;font-size:12.5px}.card{padding:16px;border-radius:18px}
+  input,select,textarea{font-size:16px}.split{gap:12px}h2.sec{font-size:14px}
+  .row .t{font-size:13px}.na{font-size:11.5px}
+}
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<div id="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark"><img src="assets/vega-logo.png" alt="vega studio"></div>
+      <div><h1>vega studio</h1><p>operational command center</p></div>
+    </div>
+    <div class="topright">
+      <div class="clock"><b id="dnow"></b><span id="dsub">managed by your pm agent</span></div>
+      <button class="btn ghost sm" onclick="exportData()">export data</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs"></nav>
+
+  <section class="section on" data-sec="overview">
+    <div class="grid kpis" id="kpis"></div>
+    <div class="card" style="margin-top:16px"><h2 class="sec" style="color:var(--ink)">high profile projects</h2><div class="grid cards" id="highprofile"></div></div>
+    <div class="grid ov-split" style="margin-top:16px">
+      <div class="card"><h2 class="sec" style="color:var(--ink)">urgency timeline · what to attack next</h2><div id="urgency"></div></div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card"><h2 class="sec" style="color:var(--ink)">calendar · what's due this month</h2><div id="calendar"></div></div>
+        <div class="card"><h2 class="sec" style="color:var(--ink)">money flow · in & out</h2><div id="money"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" data-sec="leads">
+    <h2 class="sec">new leads</h2>
+    <div class="grid cards" id="leads"></div>
+    <div class="card" style="margin-top:16px;max-width:520px">
+      <h2 class="sec" style="color:var(--ink)">add a lead</h2>
+      <label class="fl">name</label><input id="l_name" placeholder="company / person">
+      <label class="fl">summary</label><input id="l_sum" placeholder="where it came from">
+      <label class="fl">next action</label><input id="l_na" placeholder="what to do next">
+      <button class="btn" style="margin-top:14px" onclick="addLead()">add lead</button>
+      <div class="note">leads also come in when you paste an email to your pm agent. saved locally, then synced to data/vega.js via export.</div>
+    </div>
+  </section>
+
+  <section class="section" data-sec="admin">
+    <div class="grid two">
+      <div class="card"><h2 class="sec" style="color:var(--ink)">admin tasks</h2><div id="adminTasks"></div></div>
+      <div class="card"><h2 class="sec" style="color:var(--ink)">resources</h2><div id="resources"></div></div>
+    </div>
+    <div class="grid two" style="margin-top:16px">
+      <div class="card"><h2 class="sec" style="color:var(--ink)">client receivables · money in</h2><div id="recv"></div></div>
+      <div class="card"><h2 class="sec" style="color:var(--ink)">contractor payables · money out</h2><div id="pay"></div></div>
+    </div>
+  </section>
+
+  <section class="section" data-sec="projects">
+    <h2 class="sec">active projects · drag cards through the pipeline</h2>
+    <div class="card" style="margin-bottom:16px"><div class="inline" style="flex-wrap:wrap">
+      <div style="flex:2;min-width:160px"><label class="fl">project name</label><input id="np_name" placeholder="project name" onkeydown="if(event.key==='Enter')createProject()"></div>
+      <div style="flex:2;min-width:160px"><label class="fl">client</label><input id="np_client" placeholder="client"></div>
+      <button class="btn" onclick="createProject()">add project</button>
+    </div></div>
+    <div class="kan" id="kanban"></div>
+  </section>
+
+  <section class="section" data-sec="talent">
+    <h2 class="sec">talent portal</h2>
+    <div class="grid cards" id="talent"></div>
+    <div class="card" style="margin-top:16px;max-width:520px">
+      <h2 class="sec" style="color:var(--ink)">add talent</h2>
+      <div class="inline"><div style="flex:1"><label class="fl">name</label><input id="tl_name" placeholder="name"></div>
+      <div style="flex:1"><label class="fl">role</label><input id="tl_role" placeholder="role"></div></div>
+      <button class="btn" style="margin-top:14px" onclick="addTalent()">add to roster</button>
+    </div>
+  </section>
+
+  <section class="section" data-sec="scouting">
+    <h2 class="sec">potential talent · scouted for roles we need</h2>
+    <div class="card" style="margin-bottom:16px">
+      <h2 class="sec" style="color:var(--ink)">request a role to source · any role</h2>
+      <div class="inline" style="flex-wrap:wrap">
+        <div style="flex:1;min-width:150px"><label class="fl">role</label><input id="sr_role" placeholder="e.g. Video Editor, Producer, Photographer, Web Dev" onkeydown="if(event.key==='Enter')addScoutRequest()"></div>
+        <div style="flex:1;min-width:150px"><label class="fl">style reference (handle or url, optional)</label><input id="sr_ref" placeholder="@handle or link"></div>
+        <div style="flex:0 0 80px"><label class="fl">count</label><input id="sr_count" type="number" placeholder="5"></div>
+        <button class="btn" onclick="addScoutRequest()">request</button>
+      </div>
+      <div id="scoutRequests" style="margin-top:10px"></div>
+      <div class="note">your pm agent and the daily 8am scout pick these up, source against the style, dig contact info, and fill the board. not limited to AI roles.</div>
+    </div>
+    <div id="candidates"></div>
+    <div class="card" style="margin-top:16px;max-width:560px">
+      <h2 class="sec" style="color:var(--ink)">add candidate manually</h2>
+      <div class="inline"><div style="flex:1"><label class="fl">name</label><input id="nc2_name"></div>
+      <div style="flex:1"><label class="fl">role</label><input id="nc2_role" placeholder="AI Generalist"></div></div>
+      <label class="fl">headline</label><input id="nc2_head" placeholder="what they do">
+      <label class="fl">linkedin / portfolio url</label><input id="nc2_url">
+      <button class="btn" style="margin-top:12px" onclick="addCandidate()">add candidate</button>
+      <div class="note">your pm agent sources these via firecrawl. name a role and i fill the board with fresh candidates, work overview, and a why-vega fit note.</div>
+    </div>
+  </section>
+
+  <section class="section" data-sec="completed">
+    <h2 class="sec">completed · case study or follow-up</h2>
+    <div class="grid cards" id="completed"></div>
+  </section>
+
+  <section class="section" data-sec="docs">
+    <h2 class="sec">document builder · sow · rfo · contract · invoice</h2>
+    <div class="grid two">
+      <div class="card">
+        <label class="fl">document type</label>
+        <select id="d_type"><option>Scope of Work</option><option>RFO (contractor offer)</option><option>Client Contract</option><option>Invoice</option></select>
+        <label class="fl">attach to project</label><select id="d_proj"></select>
+        <label class="fl">party (client or contractor name)</label><input id="d_party" placeholder="e.g. Giant Spoon  /  Alex">
+        <label class="fl">drop the brief / context</label><textarea id="d_brief" placeholder="paste the brief, deliverables, dates, budget..."></textarea>
+        <button class="btn" style="margin-top:14px" onclick="buildDoc()">build request</button>
+        <div class="note">assembles a structured build-request using your template format reference. hand it to your pm agent and i generate the .docx into /docs.</div>
+      </div>
+      <div class="card"><h2 class="sec" style="color:var(--ink)">generated request</h2><div id="docout" class="muted" style="font-size:13px">fill the form and hit build request.</div></div>
+    </div>
+  </section>
+</div>
+
+<div class="modal" id="modal" onclick="if(event.target===this)closeModal()"><div class="sheet" id="sheet"></div></div>
+<div class="modal" id="lock"><div class="sheet" style="max-width:340px;text-align:center">
+  <div style="margin:0 auto 12px;width:60px;height:60px;border-radius:16px;background:var(--grad);display:grid;place-items:center;box-shadow:var(--shadow)"><img src="assets/vega-logo.png" alt="vega" style="width:46px;height:46px"></div>
+  <h2 style="font-size:18px">vega studio</h2>
+  <p class="muted" style="font-size:12.5px">enter passcode to view the board</p>
+  <input id="lockpass" type="password" placeholder="passcode" style="margin-top:14px;text-align:center" onkeydown="if(event.key==='Enter')tryUnlock()">
+  <button class="btn" style="margin-top:12px;width:100%" onclick="tryUnlock()">unlock</button>
+  <div id="lockerr" class="mini" style="color:#c0392b;margin-top:8px"></div>
+</div></div>
+
+<script src="data/vega.js"></script>
+<script>
+const D = window.VEGA_DATA;
+const TODAY = new Date(D.meta.today+"T00:00:00");
+const $ = s=>document.querySelector(s);
+const money = n=>"$"+(Number(n)||0).toLocaleString();
+const cap = s=>(s||"").replace(/\b\w/g,c=>c.toUpperCase());
+const esc = s=>(s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+/* ---- overrides (localStorage) ---- */
+const LS="vega_overrides";
+const OV_DEFAULTS={taskDone:{},leads:[],stage:{},budget:{},addedTasks:{},projContractors:{},timelineAdd:{},deadline:{},talent:{},addedTalent:[],payEdit:{},addedPayments:[],removedPayments:[],desc:{},detached:{},removedTalent:[],projRate:{},highProfile:{},tlEdit:{},tlRemoved:{},addedProjects:[],convertedLeads:[],candStatus:{},addedCandidates:[],scoutConfig:{},scoutRequests:[],scoutReqDone:[]};
+let OV=Object.assign({},OV_DEFAULTS,JSON.parse(localStorage.getItem(LS)||"{}"));
+/* ===== cloud sync (Supabase) — fill CLOUD to turn on; empty = localStorage only =====
+   SECURITY: on a public host (GitHub Pages) the anonKey + passcode are visible in page source.
+   This passcode is a deterrent, not real protection. Harden with Supabase RLS + email auth for true privacy. */
+const CLOUD={ url:"https://awwgarlwxqvbcrpmvduo.supabase.co", anonKey:"sb_publishable_ltkVV5xeHiJk8KHLPzA3hA_tyPOBYsg", table:"vega_state", id:"main", passcode:"5150" };
+let _cloudTimer=null,_applyingRemote=false;
+const cloudOn=()=>!!(CLOUD.url&&CLOUD.anonKey);
+async function cloudPull(){ if(!cloudOn())return; try{
+  const r=await fetch(`${CLOUD.url}/rest/v1/${CLOUD.table}?id=eq.${CLOUD.id}&select=data`,{headers:{apikey:CLOUD.anonKey,Authorization:'Bearer '+CLOUD.anonKey}});
+  const rows=await r.json(); if(Array.isArray(rows)&&rows[0]&&rows[0].data){ _applyingRemote=true; OV=Object.assign({},OV_DEFAULTS,rows[0].data); localStorage.setItem(LS,JSON.stringify(OV)); _applyingRemote=false; if(window._booted)renderAll(); }
+}catch(e){ console.warn('cloud pull failed',e); } }
+async function cloudPush(){ if(!cloudOn())return; try{
+  await fetch(`${CLOUD.url}/rest/v1/${CLOUD.table}`,{method:'POST',headers:{apikey:CLOUD.anonKey,Authorization:'Bearer '+CLOUD.anonKey,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([{id:CLOUD.id,data:OV,updated_at:new Date().toISOString()}])});
+}catch(e){ console.warn('cloud push failed',e); } }
+const save=()=>{ localStorage.setItem(LS,JSON.stringify(OV)); if(cloudOn()&&!_applyingRemote){ clearTimeout(_cloudTimer); _cloudTimer=setTimeout(cloudPush,1200); } };
+/* effective payments = canonical D.payments with edits applied + added - removed */
+function EP(){ const rm=OV.removedPayments||[];
+  const base=D.payments.filter(p=>!rm.includes(p.id)).map(p=>Object.assign({},p,(OV.payEdit&&OV.payEdit[p.id])||{}));
+  return [...base,...(OV.addedPayments||[])]; }
+
+/* ---- accessors ---- */
+const pStage=p=>OV.stage[p.id]||p.stage;
+const pBudget=p=>(p.id in OV.budget)?OV.budget[p.id]:(p.budget||0);
+const pDeadline=p=>OV.deadline[p.id]||p.deadline;
+const pDesc=p=>(p.id in OV.desc)?OV.desc[p.id]:(p.desc||"");
+const pHigh=p=>(p.id in (OV.highProfile||{}))?OV.highProfile[p.id]:!!p.highProfile;
+const received=x=>{ if(x.paid!=null&&x.paid!=='') return Number(x.paid)||0; return x.status==='paid'?(x.amount||0):0; };
+/* per-project contractor rate: override > project rate map > profile rate */
+const cRate=(p,c)=>{ const o=(OV.projRate[p.id]||{})[c.id]; if(o!==undefined&&o!=='') return Number(o)||0;
+  const pc=(p.contractorRates||{})[c.id]; if(pc!==undefined&&pc!=='') return Number(pc)||0;
+  return (typeof c.rate==='number')?c.rate:0; };
+function paidToContractor(p,cid){ return EP().filter(x=>x.projectId===p.id&&x.type==='contractor-payable'&&x.partyId===cid).reduce((a,b)=>a+received(b),0); }
+const pTasks=p=>[...p.tasks,...(OV.addedTasks[p.id]||[])];
+function pTimeline(p){ const base=(p.timeline||[]).map((n,i)=>Object.assign({id:'ms_'+p.id+'_'+i},n));
+  const added=(OV.timelineAdd[p.id]||[]); const rm=OV.tlRemoved[p.id]||[]; const ed=OV.tlEdit[p.id]||{};
+  return [...base,...added].filter(n=>!rm.includes(n.id)).map(n=>Object.assign({},n,ed[n.id]||{}))
+    .sort((a,b)=>((a.date?Date.parse(a.date):9e15)-(b.date?Date.parse(b.date):9e15))); }
+function leadCount(){ return [...D.leads,...OV.leads].filter(l=>!(OV.convertedLeads||[]).includes(l.id)).length; }
+const pCtrIds=p=>[...(p.contractorIds||[]),...(OV.projContractors[p.id]||[])].filter(id=>!(OV.detached[p.id]||[]).includes(id));
+function talentList(){ const rm=OV.removedTalent||[]; return [...D.contractors,...OV.addedTalent].filter(c=>!rm.includes(c.id)).map(c=>Object.assign({},c,OV.talent[c.id]||{})); }
+const talentById=id=>talentList().find(c=>c.id===id);
+function taskState(id,base){ return (id in OV.taskDone)?(OV.taskDone[id]?"done":"todo"):base; }
+
+/* ---- urgency ---- */
+function daysTo(d){ if(!d) return null; return Math.round((new Date(d+"T00:00:00")-TODAY)/864e5); }
+function urgency(due,priority){ let s; const dd=daysTo(due);
+  if(dd===null) s=15; else if(dd<0) s=100; else if(dd===0) s=90; else if(dd<=2) s=75; else if(dd<=5) s=55; else if(dd<=10) s=35; else s=15;
+  if(priority==="critical") s=Math.max(s,90); if(priority==="high"&&s<55) s=55; return s; }
+const uClass=s=>s>=90?"u-90":s>=75?"u-75":s>=55?"u-55":s>=35?"u-35":"u-15";
+function uLabel(due){ const dd=daysTo(due); if(dd===null)return "no date"; if(dd<0)return Math.abs(dd)+"d overdue"; if(dd===0)return "due today"; if(dd===1)return "due tomorrow"; return "in "+dd+"d"; }
+function allOpenTasks(){ let o=[];
+  D.projects.forEach(p=>pTasks(p).forEach(t=>{ if(taskState(t.id,t.status)!=="done") o.push({...t,project:p.name,pid:p.id}); }));
+  D.admin.tasks.forEach(t=>{ if(taskState(t.id,t.status)!=="done") o.push({...t,project:"admin",pid:null}); });
+  return o.map(t=>({...t,u:urgency(t.due,t.priority)})).sort((a,b)=>b.u-a.u||((daysTo(a.due)??999)-(daysTo(b.due)??999))); }
+
+/* ---- money helpers ---- */
+const clientPays=D=>D; // noop guard
+function projMoney(p){
+  const ps=EP().filter(x=>x.projectId===p.id);
+  const cli=ps.filter(x=>x.type==="client-receivable"), ctr=ps.filter(x=>x.type==="contractor-payable");
+  const cPaid=cli.reduce((a,b)=>a+received(b),0);
+  const budget=pBudget(p);
+  const cOwed=budget>0?Math.max(budget-cPaid,0):cli.reduce((a,b)=>a+Math.max((b.amount||0)-received(b),0),0);
+  const kPaid=ctr.reduce((a,b)=>a+received(b),0);
+  const ctrList=pCtrIds(p).map(talentById).filter(Boolean);
+  const kRate=ctrList.reduce((a,c)=>a+cRate(p,c),0);
+  const kOwed=ctrList.reduce((a,c)=>a+Math.max(cRate(p,c)-paidToContractor(p,c.id),0),0);
+  return {budget,cPaid,cOwed,kPaid,kOwed,kRate,ps};
+}
+function totals(){
+  let r={cIn:0,cTotal:0,kPaid:0,kOwed:0};
+  EP().forEach(p=>{ const rec=received(p); if(p.type==="client-receivable"){ r.cTotal+=p.amount||0; r.cIn+=rec; } else { r.kPaid+=rec; } });
+  r.cOutstanding=D.projects.reduce((a,p)=>a+projMoney(p).cOwed,0);
+  r.kOwed=D.projects.reduce((a,p)=>a+projMoney(p).kOwed,0);
+  return r;
+}
+
+/* ---- nav ---- */
+const SECTIONS=[["overview","command center"],["leads","leads"],["admin","admin"],["projects","projects"],["talent","talent"],["scouting","scouting"],["completed","completed"],["docs","docs"]];
+function counts(){ return { leads:leadCount(), admin:D.admin.tasks.filter(t=>taskState(t.id,t.status)!=="done").length,
+  projects:D.projects.length, talent:talentList().length, scouting:candList().filter(c=>c.status!=='passed').length, completed:D.completed.length, overview:allOpenTasks().filter(t=>t.u>=75).length }; }
+function renderTabs(){ const c=counts();
+  $("#tabs").innerHTML=SECTIONS.map(([k,lbl])=>{ const n=c[k]; const b=(n!==undefined&&k!=="docs")?`<span class="ct">${n}</span>`:"";
+    return `<div class="tab ${k==='overview'?'on':''}" data-go="${k}">${lbl}${b}</div>`; }).join("");
+  document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>go(t.dataset.go)); }
+function go(k){ document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.go===k));
+  document.querySelectorAll(".section").forEach(s=>s.classList.toggle("on",s.dataset.sec===k)); }
+
+/* ---- overview ---- */
+function renderKPIs(){ const t=totals();
+  const k=[
+    ["active projects",D.projects.length,"in the pipeline",""],
+    ["open leads",leadCount(),"in the funnel",""],
+    ["client outstanding",money(t.cOutstanding),"money clients owe us","in"],
+    ["collected",money(t.cIn),"received to date","in"],
+    ["owed to contractors",money(t.kOwed),"money out, unpaid","out"],
+    ["paid to contractors",money(t.kPaid),"money out, paid","out"]
+  ];
+  $("#kpis").innerHTML=k.map(([s,b,sm,cls])=>`<div class="card kpi ${cls}"><b>${b}</b><span>${s}</span><br><small>${sm}</small></div>`).join(""); }
+function renderHighProfile(){ const hp=D.projects.filter(p=>pHigh(p));
+  $("#highprofile").innerHTML=hp.length?hp.map(p=>{ const m=projMoney(p); return `<div class="card pj" style="cursor:pointer" onclick="openProject('${p.id}')">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span class="pill stg-${pStage(p)}">${pStage(p).replace('-',' ')}</span><span style="color:#e8b300;font-size:15px">★</span></div>
+    <h3 style="margin-top:8px">${esc(p.name)}</h3><p style="font-size:12.5px;color:var(--muted)">${esc(p.client)}</p>
+    <div class="bar" style="margin-top:8px"><i class="blue" style="width:${projProgress(p)}%"></i></div>
+    <div class="meta">${pDeadline(p)?`<span class="pill ${uClass(urgency(pDeadline(p)))}">${uLabel(pDeadline(p))}</span>`:""}${m.kOwed>0?`<span class="tag">${money(m.kOwed)} to contractors</span>`:""}</div></div>`; }).join(""):`<div class="empty" style="color:var(--muted)">no high profile projects yet. open a project and tap "high profile".</div>`; }
+function toggleHigh(id){ const p=D.projects.find(x=>x.id===id); if(!p)return; OV.highProfile=OV.highProfile||{}; OV.highProfile[id]=!pHigh(p); save(); if(window._openPid===id)openProject(id); renderAll(); }
+function renderUrgency(){ const t=allOpenTasks().slice(0,12);
+  $("#urgency").innerHTML=t.length?t.map(x=>`<div class="row">
+    <input type="checkbox" class="check" title="mark complete" onchange="toggleTask('${x.id}',this.checked)">
+    <span class="pill ${uClass(x.u)}">${uLabel(x.due)}</span>
+    <div class="t">${esc(x.title)}<div style="margin-top:4px"><span class="tag">${esc(x.project)}</span></div></div>
+    ${x.pid?`<button class="btn ghost sm" onclick="openProject('${x.pid}')">open</button>`:""}
+  </div>`).join(""):`<div class="empty" style="color:var(--muted)">all clear. nothing urgent.</div>`; }
+function renderMoney(){ const t=totals();
+  const inPct=t.cTotal?Math.round(t.cIn/t.cTotal*100):0;
+  const kTotal=t.kPaid+t.kOwed; const outPct=kTotal?Math.round(t.kPaid/kTotal*100):0;
+  $("#money").innerHTML=`
+    <div class="mini money-in" style="font-weight:700">▲ money in · clients</div>
+    <div class="bar inbar" style="margin:7px 0 3px"><i style="width:${inPct}%"></i></div>
+    <div class="mini muted">${money(t.cIn)} collected of ${money(t.cTotal)} · ${inPct}% · ${money(t.cOutstanding)} outstanding</div>
+    <div class="mini money-out" style="font-weight:700;margin-top:16px">▼ money out · contractors</div>
+    <div class="bar outbar" style="margin:7px 0 3px"><i style="width:${outPct}%"></i></div>
+    <div class="mini muted">${money(t.kPaid)} paid of ${money(kTotal)} · ${money(t.kOwed)} still owed</div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(16,36,58,.12)">
+      <div class="row" style="background:rgba(17,154,85,.1)"><div class="t">net collected − paid out</div><b class="money-in">${money(t.cIn-t.kPaid)}</b></div>
+    </div>`; }
+
+/* ---- calendar ---- */
+function calEvents(){ const ev={}; const add=(d,label,color)=>{ if(!d)return; (ev[d]=ev[d]||[]).push({label,color}); };
+  D.projects.forEach(p=>{ const dl=pDeadline(p); if(dl) add(dl,'deadline: '+p.name,'#c0392b');
+    pTasks(p).forEach(t=>{ if(t.due&&taskState(t.id,t.status)!=='done') add(t.due,t.title+' · '+p.name,'#0a6cff'); });
+    pTimeline(p).forEach(m=>{ if(m.date) add(m.date,m.title+' · '+p.name,'#6a4bd6'); }); });
+  D.admin.tasks.forEach(t=>{ if(t.due&&taskState(t.id,t.status)!=='done') add(t.due,t.title+' · admin','#0a6cff'); });
+  EP().forEach(x=>{ if(x.due&&received(x)<(x.amount||0)){ const inn=x.type==='client-receivable'; add(x.due,x.label+(inn?' · money in':' · money out'),inn?'#119a55':'#c87a00'); } });
+  [...D.leads,...OV.leads].filter(l=>!(OV.convertedLeads||[]).includes(l.id)).forEach(l=>{ if(l.due) add(l.due,'lead: '+l.name,'#0a9aa0'); });
+  return ev; }
+function calNav(d){ window._calM+=d; if(window._calM<0){window._calM=11;window._calY--;} if(window._calM>11){window._calM=0;window._calY++;} window._calSel=null; renderCalendar(); }
+function selCalDay(ds){ window._calSel=(window._calSel===ds?null:ds); renderCalendar(); }
+function renderCalendar(){ const ev=calEvents(); const y=window._calY, m=window._calM;
+  const first=new Date(y,m,1); const startDow=first.getDay(); const days=new Date(y,m+1,0).getDate();
+  const monthName=first.toLocaleDateString('en-US',{month:'long',year:'numeric'}).toLowerCase(); const today=D.meta.today;
+  const dow=['s','m','t','w','t','f','s'].map(x=>`<div class="caldow">${x}</div>`).join('');
+  let cells=''; for(let i=0;i<startDow;i++) cells+=`<div class="calcell empty"></div>`;
+  for(let d=1;d<=days;d++){ const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const items=ev[ds]||[];
+    const dots=items.slice(0,4).map(it=>`<span class="caldot" style="background:${it.color}"></span>`).join('');
+    const title=items.map(it=>it.label.replace(/"/g,'')).join(' | ');
+    cells+=`<div class="calcell ${ds===today?'today':''} ${ds===window._calSel?'sel':''}" title="${title}" onclick="selCalDay('${ds}')"><div class="dnum">${d}</div><div class="caldots">${dots}</div>${items.length>4?`<div class="calmore">+${items.length-4}</div>`:''}</div>`; }
+  let detail=''; const sel=window._calSel;
+  if(sel&&ev[sel]) detail=`<div style="margin-top:10px;border-top:1px solid rgba(16,36,58,.12);padding-top:8px"><div class="mini" style="font-weight:700;margin-bottom:4px">${sel}</div>${ev[sel].map(it=>`<div class="row" style="padding:6px 9px"><span class="caldot" style="width:8px;height:8px;background:${it.color}"></span><div class="t" style="font-size:12px;font-weight:600">${esc(it.label)}</div></div>`).join('')}</div>`;
+  else if(sel) detail=`<div class="mini muted" style="margin-top:10px">${sel}: nothing due</div>`;
+  $("#calendar").innerHTML=`<div class="calhead"><span class="calnav" onclick="calNav(-1)">‹</span><b>${monthName}</b><span class="calnav" onclick="calNav(1)">›</span></div>
+    <div class="calgrid">${dow}</div><div class="calgrid" style="margin-top:4px">${cells}</div>${detail}`; }
+
+/* ---- leads ---- */
+function renderLeads(){ const conv=OV.convertedLeads||[]; const all=[...D.leads,...OV.leads].filter(l=>!conv.includes(l.id));
+  $("#leads").innerHTML=all.map(l=>`<div class="card lead"><span class="pill p-${l.status}">${l.status}</span>
+    <h3 style="margin-top:8px">${esc(l.name)}</h3><p>${esc(l.summary||"")}</p>
+    ${l.due?`<span class="pill ${uClass(urgency(l.due))}">${uLabel(l.due)}</span>`:""}
+    <div class="na"><b>next:</b> ${esc(l.nextAction||"—")}</div>
+    <button class="btn sm" style="margin-top:10px" onclick="convertLead('${l.id}')">→ convert to project</button></div>`).join("")||`<div class="empty">no leads yet.</div>`; }
+function addLead(){ const name=$("#l_name").value.trim(); if(!name)return;
+  OV.leads.push({id:"lead_"+Date.now(),name,summary:$("#l_sum").value.trim(),nextAction:$("#l_na").value.trim(),status:"new",due:""});
+  save(); $("#l_name").value=$("#l_sum").value=$("#l_na").value=""; renderAll(); }
+
+/* ---- admin / tasks ---- */
+function taskRow(t,sub){ const st=taskState(t.id,t.status);
+  return `<div class="row"><input type="checkbox" class="check" ${st==='done'?'checked':''} onchange="toggleTask('${t.id}',this.checked)">
+    <div class="t" style="${st==='done'?'opacity:.5;text-decoration:line-through':''}">${esc(t.title)}${sub?`<div class="m">${esc(sub)}</div>`:(t.owner?`<div class="m">${esc(t.owner)}</div>`:"")}</div>
+    ${t.due?`<span class="pill ${uClass(urgency(t.due,t.priority))}">${uLabel(t.due)}</span>`:""}</div>`; }
+function toggleTask(id,on){ OV.taskDone[id]=on; save(); renderAll(); if($("#modal").classList.contains("on")&&window._openPid)openProject(window._openPid); }
+function renderAdmin(){ $("#adminTasks").innerHTML=D.admin.tasks.map(t=>taskRow(t)).join("");
+  $("#resources").innerHTML=D.admin.resources.map(r=>`<div class="row"><span class="dot" style="background:#0077CC"></span><div class="t">${esc(r.label)}</div><a class="btn ghost sm" href="${r.url}" target="_blank">open</a></div>`).join("");
+  const recv=EP().filter(p=>p.type==="client-receivable");
+  const tbl=(rows,h)=>`<table><tr><th>${h}</th><th>status</th><th class="r">amount</th></tr>${rows.map(p=>`<tr><td>${esc(p.label)}</td><td><span class="pill st-${p.status==='paid'?'done':'todo'}">${p.status}</span></td><td class="r">${money(p.amount)}</td></tr>`).join("")}<tr><td><b>total</b></td><td></td><td class="r"><b>${money(rows.reduce((a,b)=>a+b.amount,0))}</b></td></tr></table>`;
+  $("#recv").innerHTML=tbl(recv,"client");
+  const crows=talentList().map(c=>{ let rate=0,paid=0,projs=[]; D.projects.forEach(p=>{ if(pCtrIds(p).includes(c.id)){ rate+=cRate(p,c); paid+=paidToContractor(p,c.id); projs.push(p.name); } }); return {name:c.name,rate,paid,owed:Math.max(rate-paid,0),projs}; }).filter(r=>r.rate>0||r.paid>0);
+  $("#pay").innerHTML=`<table><tr><th>contractor</th><th class="r">rate</th><th class="r">paid</th><th class="r">owed</th></tr>${crows.map(r=>`<tr><td>${esc(r.name)}<div class="mini">${esc(r.projs.join(', '))}</div></td><td class="r">${money(r.rate)}</td><td class="r money-out">${money(r.paid)}</td><td class="r" style="color:var(--out)"><b>${money(r.owed)}</b></td></tr>`).join("")||'<tr><td colspan="4" class="muted">no contractor obligations yet</td></tr>'}<tr><td><b>total</b></td><td class="r"><b>${money(crows.reduce((a,b)=>a+b.rate,0))}</b></td><td class="r"><b>${money(crows.reduce((a,b)=>a+b.paid,0))}</b></td><td class="r"><b>${money(crows.reduce((a,b)=>a+b.owed,0))}</b></td></tr></table>`; }
+
+/* ---- projects + drag/drop ---- */
+const STAGES=[["discovery","discovery"],["in-progress","in progress"],["pending-payment","pending payment"],["done","done"]];
+function projProgress(p){ const ts=pTasks(p); const tot=ts.length||1; return Math.round(ts.filter(t=>taskState(t.id,t.status)==="done").length/tot*100); }
+function renderKanban(){ $("#kanban").innerHTML=STAGES.map(([key,lbl])=>{
+    const items=D.projects.filter(p=>pStage(p)===key);
+    return `<div class="col"><h4>${lbl}<span>${items.length}</span></h4>
+      <div class="stack" ondragover="overCol(event,true)" ondragleave="overCol(event,false)" ondrop="dropProj(event,'${key}')">${
+      items.map(p=>{ const m=projMoney(p); return `<div class="pj" draggable="true" data-pid="${p.id}"
+        ondragstart="dragStart(event,'${p.id}')" ondragend="dragEnd(event)" onclick="cardClick('${p.id}')">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><h3>${esc(p.name)}</h3>
+        <span onclick="event.stopPropagation();toggleHigh('${p.id}')" title="mark high profile" style="cursor:pointer;font-size:17px;line-height:1;color:${pHigh(p)?'#e8b300':'rgba(16,36,58,.28)'}">${pHigh(p)?'★':'☆'}</span></div>
+        <p>${esc(p.client)}</p>
+        <div class="bar"><i class="blue" style="width:${projProgress(p)}%"></i></div>
+        <div class="meta"><span class="mini">${pTasks(p).filter(t=>taskState(t.id,t.status)==='done').length}/${pTasks(p).length} tasks</span>
+        ${m.budget>0?`<span class="tag">${money(m.cOwed)} owed</span>`:""}
+        ${pDeadline(p)?`<span class="pill ${uClass(urgency(pDeadline(p)))}">${uLabel(pDeadline(p))}</span>`:""}</div></div>`; }).join("")
+      ||`<div class="empty" style="color:rgba(255,255,255,.5);font-size:12px">drop here</div>`}</div></div>`; }).join(""); }
+let _dragPid=null,_dragMoved=0;
+function dragStart(e,pid){ _dragPid=pid; _dragMoved=Date.now(); e.dataTransfer.effectAllowed="move"; e.target.classList.add("dragging"); }
+function dragEnd(e){ e.target.classList.remove("dragging"); document.querySelectorAll(".stack.over").forEach(s=>s.classList.remove("over")); }
+function overCol(e,on){ e.preventDefault(); e.currentTarget.classList.toggle("over",on); }
+function dropProj(e,stage){ e.preventDefault(); e.currentTarget.classList.remove("over"); if(!_dragPid)return;
+  OV.stage[_dragPid]=stage; save(); _dragMoved=Date.now(); _dragPid=null; renderKanban(); renderTabs(); }
+function cardClick(pid){ if(Date.now()-_dragMoved<250)return; openProject(pid); }
+
+function openProject(id){ window._openPid=id;
+  const p=D.projects.find(x=>x.id===id)||D.completed.find(x=>x.id===id); if(!p)return;
+  const m=projMoney(p); const ctrs=pCtrIds(p).map(talentById).filter(Boolean);
+  const unattached=talentList().filter(c=>!pCtrIds(p).includes(c.id));
+  $("#sheet").innerHTML=`<span class="x" onclick="closeModal()">×</span>
+    <span class="pill stg-${pStage(p)}">${pStage(p).replace('-',' ')}</span>
+    <button class="btn ghost sm" onclick="toggleHigh('${id}')" style="margin-left:8px">${pHigh(p)?'★ high profile':'☆ high profile'}</button>
+    <h2 style="margin-top:8px">${esc(p.name)}</h2>
+    <p class="muted">${esc(p.client)}${pDeadline(p)?' · deadline '+pDeadline(p)+' ('+uLabel(pDeadline(p))+')':''}</p>
+
+    <div class="box fw" style="margin-top:14px"><h5>project description</h5>
+      <textarea id="p_desc" style="margin-top:0" placeholder="what this project is, in a few lines">${esc(pDesc(p))}</textarea>
+      <button class="btn sm" style="margin-top:8px" onclick="setDesc('${id}')">save description</button>
+    </div>
+
+    <div class="box fw" style="margin-top:14px"><h5>timeline <button class="btn ghost sm" onclick="genTimeline('${id}')">auto from brief</button></h5>
+      <div class="tl">${pTimeline(p).map(n=>`<div class="node ${n.status||'pending'}"><div class="c"></div><div class="lbl">${esc(n.title)}</div><div class="dt">${n.date||''}</div></div>`).join("")||'<span class="muted">no milestones yet</span>'}</div>
+      <div style="margin-top:10px">${pTimeline(p).map(n=>milestoneRow(p,n)).join("")}</div>
+      <div class="inline" style="margin-top:8px">
+        <div style="flex:2"><label class="fl">add milestone</label><input id="tl_title" placeholder="what happens" onkeydown="if(event.key==='Enter')addMilestone('${id}')"></div>
+        <div style="flex:1"><label class="fl">date</label><input id="tl_date" type="date"></div>
+        <button class="btn sm" onclick="addMilestone('${id}')">add</button></div>
+      <div class="inline" style="margin-top:8px"><div style="flex:1"><label class="fl">project deadline</label><input id="tl_deadline" type="date" value="${pDeadline(p)||''}"></div>
+        <button class="btn sm" onclick="setDeadline('${id}')">save</button></div>
+      <div class="note">your pm agent auto-fills this from the brief when a project is created. add, edit, or remove milestones anytime.</div>
+    </div>
+
+    <div class="split">
+      <div class="box"><h5>task list</h5>
+        ${pTasks(p).map(t=>taskRow(t)).join("")||'<span class="muted">no tasks</span>'}
+        <div style="margin-top:8px"><div class="inline">
+          <div style="flex:2"><label class="fl">new task</label><input id="nt_title" placeholder="task" onkeydown="if(event.key==='Enter')addTask('${id}')"></div>
+          <div style="flex:1"><label class="fl">due</label><input id="nt_due" type="date"></div>
+          <button class="btn sm" onclick="addTask('${id}')">add task</button></div></div>
+      </div>
+      <div class="box"><h5>team & contracts</h5>
+        ${ctrs.length?ctrs.map(c=>{ const paid=paidToContractor(p,c.id), rate=cRate(p,c), owed=Math.max(rate-paid,0); return `<div class="row"><div class="t">${esc(c.name)}<div class="m">${esc(c.role)} · paid ${money(paid)} · <span style="color:var(--out)">owed ${money(owed)}</span></div></div>
+          <input type="number" value="${rate||''}" placeholder="rate" title="project rate" style="width:92px;margin-top:0" onchange="setProjRate('${id}','${c.id}',this.value)">
+          <span onclick="detachContractor('${id}','${c.id}')" title="remove from project" style="cursor:pointer;color:var(--faint);font-weight:800;font-size:16px">×</span></div>`; }).join(""):'<span class="muted">no contractors</span>'}
+        <div class="inline" style="margin-top:8px"><div style="flex:1"><label class="fl">attach existing</label>
+          <select id="attachCtr">${unattached.map(c=>`<option value="${c.id}">${esc(c.name)} · ${esc(c.role)}</option>`).join("")||'<option value="">roster empty</option>'}</select></div>
+          <button class="btn sm" onclick="attachContractor('${id}')">attach</button></div>
+        <div class="inline" style="margin-top:8px"><div style="flex:1"><label class="fl">new contractor</label><input id="nc_name" placeholder="name"></div>
+          <div style="flex:1"><label class="fl">role</label><input id="nc_role" placeholder="role"></div>
+          <button class="btn sm" onclick="addNewContractorToProject('${id}')">create + attach</button></div>
+        ${(p.contractIds||[]).length?`<div class="chips" style="margin-top:10px">${p.contractIds.map(c=>`<span class="pill st-doing">${esc(c)}</span>`).join("")}</div>`:""}
+      </div>
+      <div class="box fw"><h5>brief & docs</h5>
+        ${p.brief?`<a class="btn ghost sm" href="${p.brief}" target="_blank">${esc(p.briefLabel||'open brief')}</a>`:`<span class="muted">${esc(p.briefLabel||'no brief attached')}</span>`}
+        <span style="display:inline-block;width:8px"></span>
+        <button class="btn sm" onclick="closeModal();go('docs');prefillDoc('${id}')">generate sow / rfo / invoice</button>
+      </div>
+    </div>
+
+    ${clientScheduleHTML(p)}
+    ${contractorPayoutsHTML(p)}
+
+    <div class="box fw" style="margin-top:14px"><h5>financials</h5>
+      <div class="fin">
+        <div class="cell"><b>${money(m.budget)}</b><span>client budget</span></div>
+        <div class="cell"><b class="money-in">${money(m.cPaid)}</b><span>client paid</span></div>
+        <div class="cell"><b>${money(m.cOwed)}</b><span>client owes</span></div>
+        <div class="cell"><b class="money-out">${money(m.kPaid)}</b><span>paid to contractors</span></div>
+        <div class="cell"><b class="money-out">${money(m.kOwed)}</b><span>owed to contractors</span></div>
+        <div class="cell"><b>${money(m.cPaid-m.kPaid)}</b><span>net so far</span></div>
+      </div>
+      <div class="inline" style="margin-top:10px"><div style="flex:1"><label class="fl">set client budget</label><input id="f_budget" type="number" value="${m.budget||''}" placeholder="0"></div>
+      <button class="btn sm" onclick="setBudget('${id}')">save</button></div>
+    </div>`;
+  $("#modal").classList.add("on"); }
+function closeModal(){ $("#modal").classList.remove("on"); window._openPid=null; }
+function toggleTlForm(){ const f=$("#tlForm"); f.style.display=f.style.display==="none"?"block":"none"; }
+function toggleTaskForm(){ const f=$("#taskForm"); f.style.display=f.style.display==="none"?"block":"none"; }
+function setBudget(id){ OV.budget[id]=Number($("#f_budget").value)||0; save(); openProject(id); renderAll(); }
+function setDesc(id){ OV.desc[id]=$("#p_desc").value; save(); openProject(id); }
+function setDeadline(id){ OV.deadline[id]=$("#tl_deadline").value; save(); openProject(id); renderKanban(); }
+function addMilestone(id){ const t=$("#tl_title").value.trim(); if(!t)return; (OV.timelineAdd[id]=OV.timelineAdd[id]||[]).push({id:'ms_'+Date.now(),title:t,date:$("#tl_date").value,status:"pending"}); save(); openProject(id); renderAll(); }
+function milestoneRow(p,n){ const c=n.status==='done'?'#119a55':n.status==='active'?'#0077CC':'#9aa7b4';
+  return `<div class="row"><span class="dot" style="background:${c}"></span>
+    <input value="${esc(n.title)}" title="milestone" style="flex:1;min-width:110px;margin-top:0" onchange="setMilestone('${p.id}','${n.id}','title',this.value)">
+    <input type="date" value="${n.date||''}" style="width:148px;margin-top:0" onchange="setMilestone('${p.id}','${n.id}','date',this.value)">
+    <select style="width:108px;margin-top:0" onchange="setMilestone('${p.id}','${n.id}','status',this.value)">${['pending','active','done'].map(s=>`<option ${(n.status||'pending')===s?'selected':''}>${s}</option>`).join('')}</select>
+    <span onclick="removeMilestone('${p.id}','${n.id}')" title="remove" style="cursor:pointer;color:var(--faint);font-weight:800;font-size:16px">×</span></div>`; }
+function setMilestone(pid,mid,field,val){ OV.tlEdit[pid]=OV.tlEdit[pid]||{}; OV.tlEdit[pid][mid]=Object.assign({},OV.tlEdit[pid][mid]); OV.tlEdit[pid][mid][field]=val; save(); openProject(pid); renderAll(); }
+function removeMilestone(pid,mid){ OV.tlRemoved[pid]=OV.tlRemoved[pid]||[]; if(!OV.tlRemoved[pid].includes(mid))OV.tlRemoved[pid].push(mid); save(); openProject(pid); renderAll(); }
+function genTimeline(pid){ const p=D.projects.find(x=>x.id===pid); if(!p)return;
+  const start=p.startDate||D.meta.today; const dl=pDeadline(p);
+  const s=Date.parse(start+'T00:00:00'); const e=dl?Date.parse(dl+'T00:00:00'):s+28*864e5;
+  const at=f=>new Date(s+(e-s)*f).toISOString().slice(0,10);
+  const phases=[['Brief intake + kickoff',0],['Discovery + styleframes',0.2],['V1 delivery',0.5],['V2 delivery',0.75],['Final delivery',1]];
+  OV.timelineAdd[pid]=(OV.timelineAdd[pid]||[]).filter(n=>!n.auto).concat(phases.map(([title,f],i)=>({id:'ms_auto_'+pid+'_'+i,auto:true,title,date:at(f),status:i===0?'active':'pending'})));
+  save(); openProject(pid); renderAll(); }
+function createProject(){ const name=$("#np_name").value.trim(); if(!name)return;
+  const pid='proj_'+Date.now();
+  const proj={id:pid,name,client:$("#np_client").value.trim()||name,stage:'discovery',highProfile:false,desc:'',budget:0,brief:'',briefLabel:'',deadline:'',contractorIds:[],contractIds:[],timeline:[],tasks:[]};
+  OV.addedProjects=OV.addedProjects||[]; OV.addedProjects.push(proj);
+  if(!D.projects.find(p=>p.id===pid)) D.projects.push(proj);
+  $("#np_name").value=$("#np_client").value=''; save(); renderAll(); openProject(pid); }
+function convertLead(leadId){ const lead=[...D.leads,...OV.leads].find(l=>l.id===leadId); if(!lead)return;
+  const pid='proj_'+Date.now();
+  const proj={id:pid,name:lead.name,client:lead.name,stage:'discovery',highProfile:false,desc:lead.summary||'',budget:0,brief:'',briefLabel:'',deadline:'',contractorIds:[],contractIds:[],timeline:[],tasks:[]};
+  if(lead.nextAction) proj.tasks.push({id:'task_'+Date.now(),title:lead.nextAction,status:'todo',due:lead.due||''});
+  OV.addedProjects=OV.addedProjects||[]; OV.addedProjects.push(proj);
+  if(!D.projects.find(p=>p.id===pid)) D.projects.push(proj);
+  OV.convertedLeads=OV.convertedLeads||[]; OV.convertedLeads.push(leadId);
+  OV.leads=(OV.leads||[]).filter(l=>l.id!==leadId);
+  save(); renderAll(); go('projects'); openProject(pid); }
+function addTask(id){ const t=$("#nt_title").value.trim(); if(!t)return; (OV.addedTasks[id]=OV.addedTasks[id]||[]).push({id:"task_"+Date.now(),title:t,status:"todo",due:$("#nt_due").value}); save(); openProject(id); renderAll(); }
+function attachContractor(id){ const c=$("#attachCtr").value; if(!c)return; (OV.projContractors[id]=OV.projContractors[id]||[]); if(!OV.projContractors[id].includes(c))OV.projContractors[id].push(c); if(OV.detached[id])OV.detached[id]=OV.detached[id].filter(x=>x!==c); save(); openProject(id); renderAll(); }
+function setProjRate(pid,cid,val){ OV.projRate[pid]=OV.projRate[pid]||{}; OV.projRate[pid][cid]=(val===''?'':Number(val)||0); save(); openProject(pid); renderAll(); }
+function detachContractor(pid,cid){ (OV.detached[pid]=OV.detached[pid]||[]); if(!OV.detached[pid].includes(cid))OV.detached[pid].push(cid);
+  if(OV.projContractors[pid])OV.projContractors[pid]=OV.projContractors[pid].filter(x=>x!==cid); save(); openProject(pid); renderAll(); }
+function addNewContractorToProject(pid){ const n=$("#nc_name").value.trim(); if(!n)return; const id="ctr_"+Date.now();
+  OV.addedTalent.push({id,name:n,role:$("#nc_role").value.trim(),location:"",timezone:"",bio:"",skills:[],portfolio:[],rate:"",terms:"",contractStatus:"new",projectIds:[pid]});
+  (OV.projContractors[pid]=OV.projContractors[pid]||[]).push(id); save(); openProject(pid); renderAll(); }
+function removeTalent(cid){ if(!confirm('remove this contractor from the roster?'))return;
+  const added=(OV.addedTalent||[]).find(x=>x.id===cid);
+  if(added){ OV.addedTalent=OV.addedTalent.filter(x=>x.id!==cid); } else { (OV.removedTalent=OV.removedTalent||[]).push(cid); }
+  Object.keys(OV.projContractors).forEach(pid=>OV.projContractors[pid]=OV.projContractors[pid].filter(x=>x!==cid));
+  save(); renderAll(); if(window._openPid)openProject(window._openPid); }
+
+/* ---- editable payments / client schedule ---- */
+const payDot=s=>s==='paid'?'#119a55':s==='invoiced'?'#0a6cff':'#9aa7b4';
+const payNode=x=>{ const st=x.status==='paid'?'done':x.status==='invoiced'?'active':'pending'; return `<div class="node ${st}"><div class="c"></div><div class="lbl">${money(x.amount)}</div><div class="dt">${x.due||'tbd'}</div></div>`; };
+function payEditRow(x){ return `<div class="row">
+  <span class="dot" style="background:${payDot(x.status)}"></span>
+  <div class="t" style="min-width:100px">${esc(x.label)}<div class="m">${received(x)>0&&received(x)<(x.amount||0)?money(received(x))+' of '+money(x.amount):(x.due?uLabel(x.due):'no date')}</div></div>
+  <input type="date" value="${x.due||''}" title="due date" style="width:140px;margin-top:0" onchange="setPayField('${x.id}','due',this.value)">
+  <input type="number" value="${x.amount}" title="amount" style="width:100px;margin-top:0" onchange="setPayField('${x.id}','amount',this.value)">
+  <input type="number" value="${x.paid!=null&&x.paid!==''?x.paid:(x.status==='paid'?x.amount:'')}" placeholder="paid" title="amount paid" style="width:96px;margin-top:0" onchange="setPayField('${x.id}','paid',this.value)">
+  <select style="width:122px;margin-top:0" onchange="setPayField('${x.id}','status',this.value)">${['scheduled','invoiced','paid'].map(s=>`<option ${x.status===s?'selected':''}>${s}</option>`).join('')}</select>
+  <span onclick="removePay('${x.id}')" title="remove" style="cursor:pointer;color:var(--faint);font-weight:800;font-size:16px">×</span></div>`; }
+function clientScheduleHTML(p){ const cps=EP().filter(x=>x.projectId===p.id&&x.type==='client-receivable').sort((a,b)=>((daysTo(a.due)??9e9)-(daysTo(b.due)??9e9)));
+  return `<div class="box fw" style="margin-top:14px"><h5>client payment schedule <button class="btn ghost sm" onclick="genSchedule('${p.id}')">auto 50 · 25 · 25 from budget</button></h5>
+    ${cps.length?`<div class="tl">${cps.map(payNode).join('')}</div>`:''}
+    <div style="margin-top:8px">${cps.map(payEditRow).join('')||'<span class="muted">no client payments scheduled yet</span>'}</div>
+    <div class="inline" style="margin-top:10px;flex-wrap:wrap">
+      <div style="flex:2;min-width:140px"><label class="fl">payment label</label><input id="pp_label" placeholder="e.g. deposit (50%)"></div>
+      <div style="flex:1;min-width:90px"><label class="fl">amount</label><input id="pp_amt" type="number" placeholder="0"></div>
+      <div style="flex:1;min-width:120px"><label class="fl">date</label><input id="pp_due" type="date"></div>
+      <div style="flex:1;min-width:110px"><label class="fl">status</label><select id="pp_status"><option>scheduled</option><option>invoiced</option><option>paid</option></select></div>
+      <button class="btn sm" onclick="addPayment('${p.id}','client-receivable')">add</button></div></div>`; }
+function ctrPayRow(x,p){ const opts=pCtrIds(p).map(talentById).filter(Boolean);
+  const optHtml=['<option value="">unassigned</option>'].concat(opts.map(c=>`<option value="${c.id}" ${x.partyId===c.id?'selected':''}>${esc(c.name)}</option>`)).join('');
+  return `<div class="row">
+    <span class="dot" style="background:${payDot(x.status)}"></span>
+    <div class="t" style="min-width:84px">${esc(x.label)}<div class="m">${received(x)>0&&received(x)<(x.amount||0)?money(received(x))+' of '+money(x.amount):(x.due?uLabel(x.due):'no date')}</div></div>
+    <select style="width:116px;margin-top:0" title="for contractor" onchange="setPayField('${x.id}','partyId',this.value)">${optHtml}</select>
+    <input type="number" value="${x.amount}" title="amount" style="width:92px;margin-top:0" onchange="setPayField('${x.id}','amount',this.value)">
+    <input type="number" value="${x.paid!=null&&x.paid!==''?x.paid:(x.status==='paid'?x.amount:'')}" placeholder="paid" title="amount paid" style="width:84px;margin-top:0" onchange="setPayField('${x.id}','paid',this.value)">
+    <select style="width:112px;margin-top:0" onchange="setPayField('${x.id}','status',this.value)">${['scheduled','invoiced','paid'].map(s=>`<option ${x.status===s?'selected':''}>${s}</option>`).join('')}</select>
+    <span onclick="removePay('${x.id}')" title="remove" style="cursor:pointer;color:var(--faint);font-weight:800;font-size:16px">×</span></div>`; }
+function contractorPayoutsHTML(p){ const kps=EP().filter(x=>x.projectId===p.id&&x.type==='contractor-payable').sort((a,b)=>((daysTo(a.due)??9e9)-(daysTo(b.due)??9e9)));
+  const opts=pCtrIds(p).map(talentById).filter(Boolean);
+  return `<div class="box fw" style="margin-top:14px"><h5>contractor payouts · money out</h5>
+    <div>${kps.map(x=>ctrPayRow(x,p)).join('')||'<span class="muted">no contractor payouts yet</span>'}</div>
+    <div class="inline" style="margin-top:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:120px"><label class="fl">for</label><select id="cp_party"><option value="">unassigned</option>${opts.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
+      <div style="flex:2;min-width:120px"><label class="fl">payout label</label><input id="cp_label" placeholder="auto from contractor"></div>
+      <div style="flex:1;min-width:90px"><label class="fl">amount</label><input id="cp_amt" type="number" placeholder="0"></div>
+      <div style="flex:1;min-width:110px"><label class="fl">date</label><input id="cp_due" type="date"></div>
+      <div style="flex:1;min-width:100px"><label class="fl">status</label><select id="cp_status"><option>scheduled</option><option>paid</option></select></div>
+      <button class="btn sm" onclick="addPayment('${p.id}','contractor-payable')">add</button></div></div>`; }
+function setPayField(id,field,val){ if(field==='amount') val=Number(val)||0; if(field==='paid') val=(val===''?null:Number(val)||0);
+  const added=(OV.addedPayments||[]).find(x=>x.id===id);
+  if(added){ added[field]=val; } else { OV.payEdit=OV.payEdit||{}; OV.payEdit[id]=Object.assign({},OV.payEdit[id]); OV.payEdit[id][field]=val; }
+  save(); openProject(window._openPid); renderAll(); }
+function addPayment(pid,type){ const pre=type==='client-receivable'?'pp':'cp';
+  let label=$('#'+pre+'_label').value.trim();
+  const amt=Number($('#'+pre+'_amt').value)||0, due=$('#'+pre+'_due').value, st=$('#'+pre+'_status').value;
+  const rec={id:'pay_'+Date.now(),type,label,amount:amt,status:st,projectId:pid,due};
+  if(type==='contractor-payable'){ const pv=$('#cp_party'); const cid=pv?pv.value:''; if(cid){ rec.partyId=cid; if(!label){ const c=talentById(cid); if(c) label=c.name+' — payout'; } } }
+  rec.label=label||(type==='client-receivable'?'client payment':'contractor payout');
+  (OV.addedPayments=OV.addedPayments||[]).push(rec); save(); openProject(pid); renderAll(); }
+function removePay(id){ const added=(OV.addedPayments||[]).find(x=>x.id===id);
+  if(added){ OV.addedPayments=OV.addedPayments.filter(x=>x.id!==id); } else { (OV.removedPayments=OV.removedPayments||[]).push(id); }
+  save(); openProject(window._openPid); renderAll(); }
+function genSchedule(pid){ const p=D.projects.find(x=>x.id===pid); if(!p)return; const b=pBudget(p); if(!b)return;
+  OV.addedPayments=(OV.addedPayments||[]).filter(x=>!(x.projectId===pid&&x.auto));
+  const dep=Math.round(b*0.5), v1=Math.round(b*0.25), fin=b-dep-v1;
+  const today=D.meta.today, dl=pDeadline(p)||today;
+  const mid=new Date((Date.parse(today+'T00:00:00')+Date.parse(dl+'T00:00:00'))/2).toISOString().slice(0,10);
+  const t=Date.now();
+  OV.addedPayments.push({id:'pay_'+t,auto:true,type:'client-receivable',label:'Deposit (50%)',amount:dep,status:'scheduled',projectId:pid,due:today});
+  OV.addedPayments.push({id:'pay_'+(t+1),auto:true,type:'client-receivable',label:'V1 milestone (25%)',amount:v1,status:'scheduled',projectId:pid,due:mid});
+  OV.addedPayments.push({id:'pay_'+(t+2),auto:true,type:'client-receivable',label:'Final (25%)',amount:fin,status:'scheduled',projectId:pid,due:dl});
+  save(); openProject(pid); renderAll(); }
+
+/* ---- talent portal ---- */
+function renderTalent(){ const list=talentList();
+  $("#talent").innerHTML=list.map(c=>{ const projs=D.projects.filter(p=>pCtrIds(p).includes(c.id)).map(p=>p.name);
+    return `<div class="card"><h3>${esc(c.name)}</h3><p class="muted" style="font-size:12.5px">${esc(c.role)}</p>
+    <div class="chips">${c.location?`<span class="tag">${esc(c.location)}</span>`:""}${c.timezone?`<span class="tag">${esc(c.timezone)}</span>`:""}${c.contractStatus?`<span class="pill st-doing">${esc(c.contractStatus)}</span>`:""}</div>
+    <p style="font-size:12.5px;margin-top:8px">${esc(c.bio)||'<span class="muted">no bio yet</span>'}</p>
+    ${(c.skills&&c.skills.length)?`<div class="chips">${c.skills.map(s=>`<span class="tag">${esc(s)}</span>`).join("")}</div>`:""}
+    <div class="na"><b>contract:</b> ${typeof c.rate==='number'?money(c.rate):esc(c.rate||'—')} · ${esc(c.terms||c.contractStatus||'—')}</div>
+    ${(c.portfolio&&c.portfolio.length)?`<div style="margin-top:8px">${c.portfolio.map(u=>`<a class="btn ghost sm" href="${u}" target="_blank">portfolio</a> `).join("")}</div>`:""}
+    <div class="chips" style="margin-top:8px">${projs.length?projs.map(n=>`<span class="tag">assigned to: ${esc(n)}</span>`).join(""):`<span class="mini muted">unassigned</span>`}</div>
+    <div style="margin-top:10px"><button class="btn sm" onclick="editTalent('${c.id}')">edit profile</button>
+    <button class="btn ghost sm" onclick="removeTalent('${c.id}')">remove</button></div></div>`; }).join("")||`<div class="empty">no talent yet. add your roster below.</div>`; }
+function addTalent(){ const n=$("#tl_name").value.trim(); if(!n)return;
+  OV.addedTalent.push({id:"ctr_"+Date.now(),name:n,role:$("#tl_role").value.trim(),location:"",timezone:"",bio:"",skills:[],portfolio:[],rate:"",terms:"",contractStatus:"new",projectIds:[]});
+  save(); $("#tl_name").value=$("#tl_role").value=""; renderAll(); }
+function editTalent(id){ const c=talentById(id); if(!c)return;
+  $("#sheet").innerHTML=`<span class="x" onclick="closeModal()">×</span><h2>${esc(c.name)}</h2><p class="muted">${esc(c.role)}</p>
+    <div class="split">
+      <div class="box"><label class="fl">name</label><input id="e_name" value="${esc(c.name)}">
+        <label class="fl">role</label><input id="e_role" value="${esc(c.role||'')}">
+        <label class="fl">location / where they're from</label><input id="e_loc" value="${esc(c.location||'')}">
+        <label class="fl">time zone</label><input id="e_tz" value="${esc(c.timezone||'')}"></div>
+      <div class="box"><label class="fl">rate</label><input id="e_rate" value="${typeof c.rate==='number'?c.rate:esc(c.rate||'')}">
+        <label class="fl">contract terms</label><input id="e_terms" value="${esc(c.terms||'')}">
+        <label class="fl">contract status</label><input id="e_status" value="${esc(c.contractStatus||'')}"></div>
+      <div class="box fw"><label class="fl">about (who they are, specialty)</label><textarea id="e_bio">${esc(c.bio||'')}</textarea>
+        <label class="fl">skills (comma separated)</label><input id="e_skills" value="${esc((c.skills||[]).join(', '))}">
+        <label class="fl">portfolio links (one per line)</label><textarea id="e_port">${esc((c.portfolio||[]).join('\n'))}</textarea></div>
+    </div>
+    <button class="btn" style="margin-top:14px" onclick="saveTalent('${id}')">save profile</button>`;
+  $("#modal").classList.add("on"); }
+function saveTalent(id){ const g=s=>$(s).value;
+  OV.talent[id]=Object.assign({},OV.talent[id],{ name:g("#e_name"),role:g("#e_role"),location:g("#e_loc"),timezone:g("#e_tz"),
+    rate:(g("#e_rate")&&!isNaN(Number(g("#e_rate"))))?Number(g("#e_rate")):g("#e_rate"), terms:g("#e_terms"),contractStatus:g("#e_status"),
+    bio:g("#e_bio"), skills:g("#e_skills").split(",").map(s=>s.trim()).filter(Boolean), portfolio:g("#e_port").split("\n").map(s=>s.trim()).filter(Boolean) });
+  save(); closeModal(); renderAll(); }
+
+/* ---- scouting / potential talent ---- */
+function candList(){ return [...(D.candidates||[]),...OV.addedCandidates].map(c=>Object.assign({},c,{status:(c.id in OV.candStatus)?OV.candStatus[c.id]:(c.status||'sourced')})); }
+function hasWork(c){ return !!c.workVerified || (c.links||[]).some(l=>l.url && !/linkedin\.com/i.test(l.url)); }
+function sBrief(){ return (OV.scoutConfig&&OV.scoutConfig.styleBrief!=null&&OV.scoutConfig.styleBrief!==undefined)?OV.scoutConfig.styleBrief:((D.scouting&&D.scouting.styleBrief)||''); }
+function sRefs(){ return (OV.scoutConfig&&OV.scoutConfig.refs)?OV.scoutConfig.refs:((D.scouting&&D.scouting.refs)||[]); }
+function saveStyleBrief(){ OV.scoutConfig=OV.scoutConfig||{}; OV.scoutConfig.styleBrief=$("#sb_text").value; OV.scoutConfig.refs=$("#sb_refs").value.split('\n').map(s=>s.trim()).filter(Boolean); save(); renderCandidates(); }
+function sBriefPanel(){ const b=sBrief(), refs=sRefs();
+  return `<div class="card" style="margin-bottom:16px"><h2 class="sec" style="color:var(--ink)">style reference · the look we're hiring for</h2>
+    <textarea id="sb_text" style="margin-top:0" placeholder="describe the style Vega is hiring for. e.g. clean premium CGI, hyper-real textures, dynamic camera, seamless AI with no staleness, brand-level polish">${esc(b)}</textarea>
+    <label class="fl">reference links (one per line: reels, boards, our own work to match)</label>
+    <textarea id="sb_refs" style="margin-top:6px;min-height:58px" placeholder="https://...">${esc(refs.join('\n'))}</textarea>
+    <button class="btn sm" style="margin-top:10px" onclick="saveStyleBrief()">save style reference</button>
+    <div class="note">i match scouted work against this reference. candidates with no visible portfolio work are auto-screened out.</div></div>`; }
+function candCard(c){ const sm={sourced:'p-new',contacted:'p-qualified',shortlisted:'p-won',passed:'p-lost'}[c.status]||'p-new';
+  const fit=Math.max(0,Math.min(5,c.fit||0)); const stars='★'.repeat(fit)+'☆'.repeat(5-fit); const work=hasWork(c);
+  const links=(c.links||[]).map(l=>`<a class="btn ghost sm" href="${l.url}" target="_blank">${esc(l.label)}</a>`).join(' ');
+  return `<div class="card" style="${work?'':'opacity:.72'}">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span><span class="pill ${sm}">${c.status}</span>${work?'':'<span class="pill p-lost" style="margin-left:6px">no work sample</span>'}</span><span style="color:#e8b300;font-size:13px" title="fit ${fit}/5">${stars}</span></div>
+    <h3 style="margin-top:8px">${esc(c.name)}</h3>
+    <p class="muted" style="font-size:12px">${esc(c.headline||'')}</p>
+    <div class="chips" style="margin-top:6px"><span class="tag">${esc(c.platform||'LinkedIn')}</span>${c.location?`<span class="tag">${esc(c.location)}</span>`:''}</div>
+    <p style="font-size:12.5px;margin-top:8px">${esc(c.overview||'')}</p>
+    ${c.styleMatch?`<div class="na" style="background:rgba(106,75,214,.1)"><b>style match:</b> ${esc(c.styleMatch)}</div>`:''}
+    <div class="na"><b>why vega:</b> ${esc(c.whyVega||'')}</div>
+    ${(links||c.email)?`<div style="margin-top:8px">${c.email?`<a class="btn ghost sm" href="mailto:${c.email}">✉ ${esc(c.email)}</a> `:''}${links}</div>`:'<div class="mini" style="margin-top:8px;color:#c0392b">no portfolio link yet — needs a work sample to qualify</div>'}
+    <div class="inline" style="margin-top:10px"><div style="flex:1"><select onchange="setCandStatus('${c.id}',this.value)">${['sourced','contacted','shortlisted','passed'].map(s=>`<option ${c.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+      <button class="btn sm" onclick="promoteCandidate('${c.id}')">add to roster</button></div></div>`; }
+function renderCandidates(){ const showAll=window._showAllCands;
+  const active=candList().filter(c=>c.status!=='passed'); const passedN=candList().length-active.length;
+  const withWork=active.filter(hasWork), noWork=active.filter(c=>!hasWork(c)); const shown=showAll?active:withWork;
+  // retain shortlisted first within each role
+  const order=c=>(c.status==='shortlisted'?0:1);
+  const roles=[...new Set(shown.map(c=>c.role))];
+  let html=sBriefPanel();
+  html+=shown.length?roles.map(r=>`<h2 class="sec" style="margin-top:6px">${esc((r||'general').toLowerCase())} · ${shown.filter(c=>c.role===r).length}</h2><div class="grid cards">${shown.filter(c=>c.role===r).sort((a,b)=>order(a)-order(b)).map(candCard).join('')}</div>`).join(''):`<div class="empty">no candidates with verified work in the queue. tell your pm agent a role + style reference to source.</div>`;
+  if(noWork.length) html+=`<div class="mini" style="color:rgba(255,255,255,.9);margin-top:16px;cursor:pointer;font-weight:700" onclick="window._showAllCands=${!showAll};renderCandidates()">${showAll?'▾ hide '+noWork.length+' screened out (no work sample)':'▸ show '+noWork.length+' screened out — no visible work sample'}</div>`;
+  if(passedN) html+=`<div class="mini" style="color:rgba(255,255,255,.6);margin-top:8px">${passedN} passed · removed from queue</div>`;
+  $("#candidates").innerHTML=html; }
+function setCandStatus(id,v){ OV.candStatus[id]=v; save(); renderCandidates(); renderTabs(); }
+function promoteCandidate(id){ const c=candList().find(x=>x.id===id); if(!c)return;
+  OV.addedTalent.push({id:'ctr_'+Date.now(),name:c.name,role:c.role,location:c.location||'',timezone:'',bio:c.overview||'',skills:[],portfolio:(c.links||[]).map(l=>l.url),rate:'',terms:'',contractStatus:'sourced',projectIds:[]});
+  OV.candStatus[id]='shortlisted'; save(); renderAll(); go('talent'); }
+function srList(){ const done=OV.scoutReqDone||[]; return [...(D.scoutRequests||[]),...OV.scoutRequests].filter(r=>!done.includes(r.id)); }
+function renderScoutRequests(){ const el=$("#scoutRequests"); if(!el)return; const list=srList();
+  el.innerHTML=list.length?list.map(r=>`<div class="row"><span class="pill p-new">requested</span><div class="t">${esc(r.role)}${r.ref?` · <span class="muted" style="font-weight:500">${esc(r.ref)}</span>`:''}${r.count?` · ${r.count}`:''}</div><span onclick="removeScoutRequest('${r.id}')" title="remove" style="cursor:pointer;color:var(--faint);font-weight:800;font-size:16px">×</span></div>`).join(''):'<span class="muted" style="font-size:12px">no open requests</span>'; }
+function addScoutRequest(){ const role=$("#sr_role").value.trim(); if(!role)return; OV.scoutRequests.push({id:'sr_'+Date.now(),role,ref:$("#sr_ref").value.trim(),count:Number($("#sr_count").value)||5,status:'requested'}); save(); $("#sr_role").value=$("#sr_ref").value=$("#sr_count").value=''; renderScoutRequests(); }
+function removeScoutRequest(id){ const added=(OV.scoutRequests||[]).find(x=>x.id===id); if(added){OV.scoutRequests=OV.scoutRequests.filter(x=>x.id!==id);} else {(OV.scoutReqDone=OV.scoutReqDone||[]).push(id);} save(); renderScoutRequests(); }
+function addCandidate(){ const n=$("#nc2_name").value.trim(); if(!n)return;
+  OV.addedCandidates.push({id:'cand_'+Date.now(),name:n,role:$("#nc2_role").value.trim()||'General',headline:$("#nc2_head").value.trim(),location:'',overview:'',whyVega:'',fit:3,status:'sourced',links:$("#nc2_url").value.trim()?[{label:'link',url:$("#nc2_url").value.trim()}]:[]});
+  save(); $("#nc2_name").value=$("#nc2_role").value=$("#nc2_head").value=$("#nc2_url").value=''; renderAll(); }
+
+/* ---- completed / docs ---- */
+function renderCompleted(){ $("#completed").innerHTML=D.completed.length?D.completed.map(p=>`<div class="card pj" style="cursor:pointer" onclick="openProject('${p.id}')"><span class="pill stg-done">done</span><h3 style="margin-top:8px">${esc(p.name)}</h3><p>${esc(p.client)}</p><div class="na"><b>follow-up:</b> ${p.caseStudy?cap(p.caseStudy.status):'case study'}</div></div>`).join(""):`<div class="empty">no completed projects yet. drag a project to "done" and it queues here for a case study.</div>`; }
+function fillDocProjects(){ $("#d_proj").innerHTML='<option value="">— none —</option>'+D.projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join(""); }
+function prefillDoc(id){ const p=D.projects.find(x=>x.id===id); if(!p)return; $("#d_proj").value=id; $("#d_party").value=p.client; $("#d_brief").value="Project: "+p.name+"\nClient: "+p.client+"\nBudget: "+money(pBudget(p))+"\nBrief: "+(p.brief||p.briefLabel||""); }
+function buildDoc(){ const type=$("#d_type").value,pid=$("#d_proj").value,party=$("#d_party").value.trim(),brief=$("#d_brief").value.trim();
+  const p=D.projects.find(x=>x.id===pid),m=D.meta;
+  const req=`=== VEGA STUDIO · DOCUMENT BUILD REQUEST ===
+TYPE: ${type}
+PROJECT: ${p?p.name:'(standalone)'} ${p?'['+p.id+']':''}
+PARTY: ${party||'(fill in)'}
+DATE: ${m.today}
+
+RATES / TERMS (template format reference):
+- Day ${money(m.dayRate)} · Hourly ${money(m.hourlyRate)} · Agency fee ${m.agencyFeePct}%
+- Billing 50% deposit at signing · 25% at V1 · 25% at final · Net 30 · ACH/wire · late 1.5%/week
+- VEGA Studio LLC, 442 Decatur St Apt 4B, Brooklyn NY 11233 · ceej@vega.earth
+
+BRIEF / CONTEXT:
+${brief||'(paste brief)'}
+
+>>> Hand to PM agent -> generates .docx into /docs as ${p?p.name.replace(/\W+/g,''):'Project'}_${type.replace(/\W+/g,'')}_v1.docx`;
+  $("#docout").innerHTML=`<div class="codeout">${esc(req)}</div><button class="btn" style="margin-top:10px" onclick="navigator.clipboard&&navigator.clipboard.writeText(this.previousElementSibling.textContent)">copy request</button>`; }
+
+/* ---- export merged data for the agent to persist to vega.js ---- */
+function exportData(){ const m=JSON.parse(JSON.stringify(D));
+  m.projects.forEach(p=>{ p.stage=pStage(p); p.budget=pBudget(p); p.deadline=pDeadline(p); p.desc=pDesc(p);
+    p.tasks=pTasks(p).map(t=>({...t,status:taskState(t.id,t.status)})); p.timeline=pTimeline(p); p.contractorIds=pCtrIds(p);
+    p.contractorRates=Object.assign({},p.contractorRates,OV.projRate[p.id]||{}); p.highProfile=pHigh(p); });
+  m.contractors=talentList(); m.leads=[...D.leads,...OV.leads].filter(l=>!(OV.convertedLeads||[]).includes(l.id)); m.payments=EP(); m.candidates=candList(); m.scouting={styleBrief:sBrief(),refs:sRefs()}; m.scoutRequests=srList();
+  const out="window.VEGA_DATA = "+JSON.stringify(m,null,2)+";";
+  $("#sheet").innerHTML=`<span class="x" onclick="closeModal()">×</span><h2>export data</h2>
+    <p class="muted">this is your live state merged with every edit. copy it and tell your pm agent to write it to data/vega.js so it becomes canonical.</p>
+    <div class="codeout">${esc(out)}</div>
+    <button class="btn" style="margin-top:10px" onclick="navigator.clipboard&&navigator.clipboard.writeText(this.previousElementSibling.textContent)">copy</button>`;
+  $("#modal").classList.add("on"); }
+
+/* ---- boot ---- */
+function renderAll(){ renderTabs();renderKPIs();renderHighProfile();renderUrgency();renderCalendar();renderMoney();renderLeads();renderAdmin();renderKanban();renderTalent();renderCandidates();renderScoutRequests();renderCompleted(); }
+function boot(){ (OV.addedProjects||[]).forEach(ap=>{ if(!D.projects.find(p=>p.id===ap.id)) D.projects.push(ap); });
+  window._calY=TODAY.getFullYear(); window._calM=TODAY.getMonth(); window._calSel=null;
+  $("#dnow").textContent=TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}).toLowerCase(); fillDocProjects(); renderAll(); }
+boot(); window._booted=true;
+window.addEventListener('focus',()=>{ if(cloudOn()&&(!CLOUD.passcode||sessionStorage.getItem('vega_unlocked')==='1'))cloudPull(); });
+function startApp(){ cloudPull(); }
+function tryUnlock(){ var v=$("#lockpass").value; if(!CLOUD.passcode||v===CLOUD.passcode){ sessionStorage.setItem('vega_unlocked','1'); $("#lock").classList.remove('on'); startApp(); } else { $("#lockerr").textContent='wrong passcode'; $("#lockpass").value=''; } }
+(function gateInit(){ if(CLOUD.passcode && sessionStorage.getItem('vega_unlocked')!=='1'){ $("#lock").classList.add('on'); setTimeout(()=>{var e=$("#lockpass"); if(e)e.focus();},60); } else { startApp(); } })();
+</script>
+</body>
+</html>
