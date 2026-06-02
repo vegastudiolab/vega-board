@@ -828,11 +828,16 @@ const VEGA_DOC={ name:"VEGA Studio LLC", addr:"442 Decatur St Apt 4B, Brooklyn N
   bio:"Vega Studio is a full-service, digital-first creative agency working at the intersection of emerging tech, cultural analysis, and virality. We have delivered high-impact experiences for partners including Google, YouTube, Netflix, Xbox, Intel, Instagram, Roc Nation, Universal Music Group, and Coachella, specializing in CGI/3D, motion design, experiential content, and product storytelling.",
   wire:{acct:"VEGA Studio LLC",num:"7188865948",routing:"026012881",bank:"Wells Fargo Bank"} };
 function dlDocx(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000); }
-function genDocx(){
+const FN_URL = (typeof CLOUD!=="undefined"&&CLOUD.url) ? CLOUD.url+"/functions/v1/generate-doc" : "";
+async function fetchDocTokens(type,brief,project,party){ if(!FN_URL||!CLOUD.anonKey) return null;
+  try{ const r=await fetch(FN_URL,{method:"POST",headers:{apikey:CLOUD.anonKey,Authorization:"Bearer "+CLOUD.anonKey,"Content-Type":"application/json"},body:JSON.stringify({type,brief,project,party})}); const d=await r.json(); if(d&&d.ok&&d.tokens) return d.tokens; console.warn("doc fn",d); return null; }catch(e){ console.warn("doc fn failed",e); return null; } }
+async function genDocx(){
   if(!window.docx){ $("#docout").innerHTML='<div class="note">document engine is still loading (needs internet). give it a second and tap again.</div>'; return; }
   const D2=window.docx, {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,AlignmentType,WidthType,BorderStyle,ShadingType,Header,Footer,LevelFormat}=D2;
   const type=$("#d_type").value, pid=$("#d_proj").value, party=$("#d_party").value.trim()||"Client", brief=$("#d_brief").value.trim();
   const p=D.projects.find(x=>x.id===pid); const INK="222222",MUTE="555555",RED="C00000",LINE="BBBBBB";
+  $("#docout").innerHTML='<div class="note">generating with claude (sonnet)... a few seconds.</div>';
+  const T = await fetchDocTokens(type,brief,{name:p?p.name:"",client:(p?p.client:party),budget:(p&&typeof pBudget==="function")?pBudget(p):0}, party) || {};
   const nb={top:{style:BorderStyle.NONE},bottom:{style:BorderStyle.NONE},left:{style:BorderStyle.NONE},right:{style:BorderStyle.NONE}};
   const H=t=>new Paragraph({spacing:{before:220,after:80},children:[new TextRun({text:t,bold:true,size:24,color:INK})]});
   const P=(t,c)=>new Paragraph({spacing:{after:80},children:[new TextRun({text:t,size:20,color:c||MUTE})]});
@@ -844,6 +849,10 @@ function genDocx(){
   const sig=(a,b)=>new Table({width:{size:9360,type:WidthType.DXA},columnWidths:[4080,1200,4080],rows:[new TableRow({children:[cell(sigCol(a),4080),cell([new Paragraph("")],1200),cell(sigCol(b),4080)]})]});
   const money=n=>"$"+(Number(n)||0).toLocaleString();
   const title={"Scope of Work":"SCOPE OF WORK","RFO (contractor offer)":"REQUEST FOR OFFER","Client Contract":"SERVICE AGREEMENT","Invoice":"INVOICE"}[type]||"DOCUMENT";
+  const phaseBlk=ph=>[new Paragraph({spacing:{before:120,after:30},children:[new TextRun({text:ph.phase||"",bold:true,size:20,color:INK})]}),...((ph.items||[]).map(B))];
+  const bullets=arr=>(arr||[]).map(B);
+  const tlLines=arr=>(arr||[]).map(m=>LEAD(m.milestone||"",m.date||"TBD",(m.date||"TBD")==="TBD"));
+  const feeStr=v=>(v&&v!=="TBD")?(String(v).trim().startsWith("$")?String(v):money(v)):"$ TBD";
 
   let body=[];
   const meta=new Table({width:{size:9360,type:WidthType.DXA},columnWidths:[2700,6660],rows:[
@@ -859,29 +868,35 @@ function genDocx(){
       H("Remittance"),LEAD("Bank",VEGA_DOC.wire.bank),LEAD("Account name",VEGA_DOC.wire.acct),LEAD("Account #",VEGA_DOC.wire.num),LEAD("Routing #",VEGA_DOC.wire.routing),
       P("Net 30 from invoice date. ACH/wire preferred. Late payments subject to a 1.5% weekly finance charge.",INK)];
   } else if(type.startsWith("RFO")){
-    body=[meta,H("The Client"),LEAD("Objective",brief||"(paste the brief)"),LEAD("Staffing Plan",party+" for "+(p?p.name:"this project")),
+    body=[meta,H("The Client"),LEAD("Objective",T.objective||brief||"(paste the brief)"),LEAD("Staffing Plan",T.staffing||(party+" for "+(p?p.name:"this project"))),
       LEAD("Project Contacts","Charles Johnson (ceej@vega.earth), Cortney Johnson (cort@vega.earth)"),
       H("The Project"),P("Vega Studio leads creative direction, production, and delivery. The selected artist collaborates with Vega's team to execute the work below."),
-      H("Deliverables"),P(brief||"(deliverables from the brief)"),
-      LEAD("Location","Remote"),LEAD("Timeline","TBD",true),LEAD("Compensation","Allocated fee TBD",true),
+      H("Deliverables"),...((T.deliverables&&T.deliverables.length)?bullets(T.deliverables):[P(brief||"(deliverables from the brief)")]),
+      ...((T.desired_skills&&T.desired_skills.length)?[H("Desired Skills"),...bullets(T.desired_skills)]:[]),
+      LEAD("Location",T.location||"Remote"),
+      ...((T.timeline&&T.timeline.length)?[H("Timeline"),...tlLines(T.timeline)]:[LEAD("Timeline","TBD",true)]),
+      LEAD("Compensation",(T.compensation&&T.compensation!=="TBD")?String(T.compensation):"Allocated fee TBD",!(T.compensation&&T.compensation!=="TBD")),
       H("To Accept"),B("Portfolio links to relevant work (1-3 examples)."),B("Confirmation of availability across the timeline."),B("Tooling confirmation."),B("Send to ceej@vega.earth cc cort@vega.earth."),
       H("Signature"),sig("Artist","VEGA Studio")];
   } else if(type==="Client Contract"){
     body=[meta,H("Agreement"),P("This Service Agreement is between "+VEGA_DOC.name+" (Service Provider) and "+party+" (Client) for the project described below."),
-      H("Scope"),P(brief||"(scope from the brief)"),
+      H("Scope"),P(T.scope||brief||"(scope from the brief)"),
       H("Fees & Billing"),LEAD("Rates","Day "+money(VEGA_DOC.day)+" · Hourly "+money(VEGA_DOC.hr)+" · Agency fee "+VEGA_DOC.fee+"%"),
-      LEAD("Total fee","TBD",true),LEAD("Billing","50% deposit at signing, 25% at V1, 25% at final approval. Net 30. ACH/wire. Late 1.5%/week."),
-      H("Terms"),B("Up to two revision rounds per version. Changes beyond scope require written approval and may adjust cost and schedule."),B("Client provides assets, brand guidelines, approved copy, and timely feedback (within 2 business days per milestone)."),B("Ownership of final deliverables transfers on receipt of final payment."),
+      LEAD("Total fee",(T.fee_total&&T.fee_total!=="TBD")?feeStr(T.fee_total):"TBD",!(T.fee_total&&T.fee_total!=="TBD")),LEAD("Billing","50% deposit at signing, 25% at V1, 25% at final approval. Net 30. ACH/wire. Late 1.5%/week."),
+      H("Terms"),...((T.terms&&T.terms.length)?bullets(T.terms):[B("Up to two revision rounds per version. Changes beyond scope require written approval and may adjust cost and schedule."),B("Client provides assets, brand guidelines, approved copy, and timely feedback (within 2 business days per milestone)."),B("Ownership of final deliverables transfers on receipt of final payment.")]),
       H("Signatures"),sig("VEGA Studio",party)];
   } else {
-    body=[meta,H("Purpose"),P("This Scope of Work outlines the responsibilities, deliverables, budget, and timeline under which Vega Studio (Service Provider) will design and produce the work described below for "+party+"."),
+    const scopeBlocks=(T.scope&&T.scope.length)?T.scope.flatMap(phaseBlk):[B("Creative & Pre-Production: brief intake, references and styleframes, storyboard, confirm specs."),B("Production: design and produce the full visual system per the brief."),B("Motion Graphics & Overlays: animated data, type, and effects as needed."),B("Post & Finishing: comp, color, QC, export optimization."),B("Delivery & Packaging: organized final exports, working files on request.")];
+    body=[meta,H("Purpose"),P(T.purpose||("This Scope of Work outlines the responsibilities, deliverables, budget, and timeline under which Vega Studio (Service Provider) will design and produce the work described below for "+party+".")),
       H("About Us"),P(VEGA_DOC.bio),
-      H("Our Role"),P("Vega Studio acts as lead creative and production partner, owning art direction, production, finishing, and delivery, and managing workflow and review cycles with the client."),
-      H("Project Background"),P(brief||"(paste the brief in the doc builder)"),
-      H("Scope of Oversight"),B("Creative & Pre-Production: brief intake, references and styleframes, storyboard, confirm specs."),B("Production: design and produce the full visual system per the brief."),B("Motion Graphics & Overlays: animated data, type, and effects as needed."),B("Post & Finishing: comp, color, QC, export optimization."),B("Delivery & Packaging: organized final exports, working files on request."),
-      H("Review Cycles"),P("Up to two client rounds per version (V1 and V2). Additional rounds or scope changes require written approval and may affect schedule and cost."),
-      H("Timeline"),LEAD("Brief intake / kickoff / V1 / V2 / final","TBD",true),
-      H("Estimated Costs"),LEAD("Rates","Day "+money(VEGA_DOC.day)+" · Hourly "+money(VEGA_DOC.hr)+" · Agency fee "+VEGA_DOC.fee+"%"),LEAD("Grand total","$ TBD",true),
+      H("Our Role"),P(T.our_role||"Vega Studio acts as lead creative and production partner, owning art direction, production, finishing, and delivery, and managing workflow and review cycles with the client."),
+      H("Project Background"),P(T.background||brief||"(paste the brief in the doc builder)"),
+      H("Scope of Oversight"),...scopeBlocks,
+      ...((T.deliverables&&T.deliverables.length)?[H("Final Deliverables"),...bullets(T.deliverables)]:[]),
+      H("Review Cycles"),P(T.review_cycles||"Up to two client rounds per version (V1 and V2). Additional rounds or scope changes require written approval and may affect schedule and cost."),
+      H("Timeline"),...((T.timeline&&T.timeline.length)?tlLines(T.timeline):[LEAD("Brief intake / kickoff / V1 / V2 / final","TBD",true)]),
+      H("Estimated Costs"),LEAD("Rates","Day "+money(VEGA_DOC.day)+" · Hourly "+money(VEGA_DOC.hr)+" · Agency fee "+VEGA_DOC.fee+"%"),LEAD("Grand total",feeStr(T.fee_total),!(T.fee_total&&T.fee_total!=="TBD")),
+      ...((T.fee_note)?[P(T.fee_note)]:[]),
       H("Contingencies, Milestones & Billing"),LEAD("Billing","50% deposit at signing, 25% at V1, 25% at final approval."),LEAD("Approvals","Client feedback due within 2 business days per milestone."),
       H("Invoice Details"),P("Invoicing via Vega Studio. Net 30. ACH/wire preferred. Late payments subject to 1.5% weekly finance charge."),
       H("Signatures"),sig("VEGA Studio",party)];
