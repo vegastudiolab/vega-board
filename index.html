@@ -133,6 +133,11 @@ label.fl{font-size:12px;font-weight:600;text-transform:lowercase;display:block;m
 .codeout{white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:#0e2236;color:#cfe7ff;border-radius:12px;padding:14px;margin-top:12px;max-height:340px;overflow:auto}
 .empty{color:rgba(255,255,255,.7);font-size:13px;padding:14px;text-align:center}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.scrollbox{max-height:300px;overflow-y:auto;padding-right:6px;scrollbar-width:thin;scrollbar-color:rgba(16,36,58,.32) rgba(16,36,58,.08)}
+.scrollbox::-webkit-scrollbar{width:9px}
+.scrollbox::-webkit-scrollbar-track{background:rgba(16,36,58,.08);border-radius:8px}
+.scrollbox::-webkit-scrollbar-thumb{background:rgba(16,36,58,.3);border-radius:8px;border:2px solid transparent;background-clip:content-box}
+.scrollbox::-webkit-scrollbar-thumb:hover{background:rgba(16,36,58,.45);background-clip:content-box}
 .calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .calhead b{font-size:13px;text-transform:lowercase}
 .calnav{cursor:pointer;width:26px;height:26px;display:grid;place-items:center;border-radius:8px;background:rgba(255,255,255,.5);font-weight:700;color:#0077CC;user-select:none}
@@ -298,7 +303,9 @@ label.fl{font-size:12px;font-weight:600;text-transform:lowercase;display:block;m
 <script src="data/vega.js"></script>
 <script>
 const D = window.VEGA_DATA;
-const TODAY = new Date(D.meta.today+"T00:00:00");
+const ISO=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const TODAY=(()=>{const d=new Date();d.setHours(0,0,0,0);return d;})();
+D.meta.today=ISO(TODAY);
 const $ = s=>document.querySelector(s);
 const money = n=>"$"+(Number(n)||0).toLocaleString();
 const cap = s=>(s||"").replace(/\b\w/g,c=>c.toUpperCase());
@@ -306,7 +313,7 @@ const esc = s=>(s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
 /* ---- overrides (localStorage) ---- */
 const LS="vega_overrides";
-const OV_DEFAULTS={taskDone:{},leads:[],stage:{},budget:{},addedTasks:{},projContractors:{},timelineAdd:{},deadline:{},talent:{},addedTalent:[],payEdit:{},addedPayments:[],removedPayments:[],desc:{},detached:{},removedTalent:[],projRate:{},highProfile:{},tlEdit:{},tlRemoved:{},addedProjects:[],convertedLeads:[],candStatus:{},addedCandidates:[],scoutConfig:{},scoutRequests:[],scoutReqDone:[]};
+const OV_DEFAULTS={taskDone:{},leads:[],stage:{},budget:{},addedTasks:{},projContractors:{},timelineAdd:{},deadline:{},talent:{},addedTalent:[],payEdit:{},addedPayments:[],removedPayments:[],desc:{},detached:{},removedTalent:[],projRate:{},highProfile:{},tlEdit:{},tlRemoved:{},addedProjects:[],convertedLeads:[],candStatus:{},addedCandidates:[],scoutConfig:{},scoutRequests:[],scoutReqDone:[],taskEdit:{},removedTasks:[],addedAdminTasks:[],addedResources:[],removedResources:[],projDocs:{},talentDocs:{}};
 let OV=Object.assign({},OV_DEFAULTS,JSON.parse(localStorage.getItem(LS)||"{}"));
 /* ===== cloud sync (Supabase) — fill CLOUD to turn on; empty = localStorage only =====
    SECURITY: on a public host (GitHub Pages) the anonKey + passcode are visible in page source.
@@ -339,7 +346,7 @@ const cRate=(p,c)=>{ const o=(OV.projRate[p.id]||{})[c.id]; if(o!==undefined&&o!
   const pc=(p.contractorRates||{})[c.id]; if(pc!==undefined&&pc!=='') return Number(pc)||0;
   return (typeof c.rate==='number')?c.rate:0; };
 function paidToContractor(p,cid){ return EP().filter(x=>x.projectId===p.id&&x.type==='contractor-payable'&&x.partyId===cid).reduce((a,b)=>a+received(b),0); }
-const pTasks=p=>[...p.tasks,...(OV.addedTasks[p.id]||[])];
+const pTasks=p=>[...p.tasks,...(OV.addedTasks[p.id]||[])].filter(t=>!(OV.removedTasks||[]).includes(t.id)).map(t=>Object.assign({},t,(OV.taskEdit||{})[t.id]||{}));
 function pTimeline(p){ const base=(p.timeline||[]).map((n,i)=>Object.assign({id:'ms_'+p.id+'_'+i},n));
   const added=(OV.timelineAdd[p.id]||[]); const rm=OV.tlRemoved[p.id]||[]; const ed=OV.tlEdit[p.id]||{};
   return [...base,...added].filter(n=>!rm.includes(n.id)).map(n=>Object.assign({},n,ed[n.id]||{}))
@@ -477,13 +484,40 @@ function taskRow(t,sub){ const st=taskState(t.id,t.status);
     <div class="t" style="${st==='done'?'opacity:.5;text-decoration:line-through':''}">${esc(t.title)}${sub?`<div class="m">${esc(sub)}</div>`:(t.owner?`<div class="m">${esc(t.owner)}</div>`:"")}</div>
     ${t.due?`<span class="pill ${uClass(urgency(t.due,t.priority))}">${uLabel(t.due)}</span>`:""}</div>`; }
 function toggleTask(id,on){ OV.taskDone[id]=on; save(); renderAll(); if($("#modal").classList.contains("on")&&window._openPid)openProject(window._openPid); }
-function renderAdmin(){ $("#adminTasks").innerHTML=D.admin.tasks.map(t=>taskRow(t)).join("");
-  $("#resources").innerHTML=D.admin.resources.map(r=>`<div class="row"><span class="dot" style="background:#0077CC"></span><div class="t">${esc(r.label)}</div><a class="btn ghost sm" href="${r.url}" target="_blank">open</a></div>`).join("");
+function editableTaskRow(t,ctx){ const st=taskState(t.id,t.status);
+  return `<div class="row">
+    <input type="checkbox" class="check" ${st==='done'?'checked':''} onchange="toggleTask('${t.id}',this.checked)">
+    <input value="${esc(t.title)}" title="task" style="flex:1;min-width:80px;margin-top:0;${st==='done'?'opacity:.55;text-decoration:line-through':''}" onchange="setTaskField('${t.id}','title',this.value)">
+    <input type="date" value="${t.due||''}" title="due" style="width:140px;margin-top:0" onchange="setTaskField('${t.id}','due',this.value)">
+    <span onclick="deleteTask('${ctx}','${t.id}')" title="delete" style="cursor:pointer;color:var(--faint);font-weight:800;font-size:16px">×</span></div>`; }
+function setTaskField(id,field,val){ OV.taskEdit=OV.taskEdit||{}; OV.taskEdit[id]=Object.assign({},OV.taskEdit[id]); OV.taskEdit[id][field]=val; save(); renderAll(); if($("#modal").classList.contains("on")&&window._openPid)openProject(window._openPid); }
+function deleteTask(ctx,id){ if(ctx==='admin'){ if((OV.addedAdminTasks||[]).some(t=>t.id===id)) OV.addedAdminTasks=OV.addedAdminTasks.filter(t=>t.id!==id); else (OV.removedTasks=OV.removedTasks||[]).push(id); }
+  else { if((OV.addedTasks[ctx]||[]).some(t=>t.id===id)) OV.addedTasks[ctx]=OV.addedTasks[ctx].filter(t=>t.id!==id); else (OV.removedTasks=OV.removedTasks||[]).push(id); }
+  save(); renderAll(); if(window._openPid)openProject(window._openPid); }
+function addAdminTask(){ const t=$("#adm_title").value.trim(); if(!t)return; (OV.addedAdminTasks=OV.addedAdminTasks||[]).push({id:"adm_"+Date.now(),title:t,owner:"Charles",due:$("#adm_due").value,status:"todo",priority:"medium"}); save(); renderAll(); }
+function addResource(){ const l=$("#res_label").value.trim(),u=$("#res_url").value.trim(); if(!u)return; (OV.addedResources=OV.addedResources||[]).push({label:l||u,url:u}); save(); renderAll(); }
+function removeResource(u){ (OV.removedResources=OV.removedResources||[]).push(u); save(); renderAll(); }
+async function uploadToStorage(file,prefix){ if(!cloudOn()) throw new Error("cloud is off"); const path=prefix+"/"+Date.now()+"_"+(file.name||"file").replace(/[^\w.-]+/g,"_");
+  const r=await fetch(`${CLOUD.url}/storage/v1/object/vega-files/${path}`,{method:"POST",headers:{apikey:CLOUD.anonKey,Authorization:"Bearer "+CLOUD.anonKey,"x-upsert":"true"},body:file});
+  if(!r.ok) throw new Error("upload failed ("+r.status+"). create a public bucket named vega-files in Supabase Storage."); return `${CLOUD.url}/storage/v1/object/public/vega-files/${path}`; }
+function addProjDoc(pid){ const l=$("#pd_label").value.trim(),u=$("#pd_url").value.trim(); if(!u)return; (OV.projDocs[pid]=OV.projDocs[pid]||[]).push({label:l||u,url:u}); save(); openProject(pid); }
+function removeProjDoc(pid,i){ (OV.projDocs[pid]||[]).splice(i,1); save(); openProject(pid); }
+async function uploadProjFile(pid){ const inp=$("#pd_file"); const f=inp&&inp.files[0]; if(!f)return; const b=event&&event.target; if(b)b.textContent="uploading..."; try{ const url=await uploadToStorage(f,"projects/"+pid); (OV.projDocs[pid]=OV.projDocs[pid]||[]).push({label:f.name,url}); save(); openProject(pid); }catch(e){ alert(String(e.message||e)); if(b)b.textContent="upload"; } }
+function addTalentDoc(id){ const u=$("#td_url").value.trim(); if(!u)return; (OV.talentDocs[id]=OV.talentDocs[id]||[]).push({label:(u.split('/').pop()||u),url:u}); save(); editTalent(id); }
+function removeTalentDoc(id,i){ (OV.talentDocs[id]||[]).splice(i,1); save(); editTalent(id); }
+async function uploadTalentFile(id){ const inp=$("#td_file"); const f=inp&&inp.files[0]; if(!f)return; const b=event&&event.target; if(b)b.textContent="uploading..."; try{ const url=await uploadToStorage(f,"talent/"+id); (OV.talentDocs[id]=OV.talentDocs[id]||[]).push({label:f.name,url}); save(); editTalent(id); }catch(e){ alert(String(e.message||e)); if(b)b.textContent="upload"; } }
+function renderAdmin(){
+  const adminTasks=[...D.admin.tasks,...(OV.addedAdminTasks||[])].filter(t=>!(OV.removedTasks||[]).includes(t.id)).map(t=>Object.assign({},t,(OV.taskEdit||{})[t.id]||{}));
+  $("#adminTasks").innerHTML=`<div class="scrollbox">${adminTasks.map(t=>editableTaskRow(t,'admin')).join("")||'<span class="muted">no admin tasks</span>'}</div>
+    <div class="inline" style="margin-top:8px"><div style="flex:2"><label class="fl">new admin task</label><input id="adm_title" placeholder="task" onkeydown="if(event.key==='Enter')addAdminTask()"></div><div style="flex:1"><label class="fl">due</label><input id="adm_due" type="date"></div><button class="btn sm" onclick="addAdminTask()">add</button></div>`;
+  const resources=[...D.admin.resources,...(OV.addedResources||[])].filter(r=>!(OV.removedResources||[]).includes(r.url));
+  $("#resources").innerHTML=`<div class="scrollbox">${resources.map(r=>`<div class="row"><span class="dot" style="background:#0077CC"></span><div class="t">${esc(r.label)}<div class="m" style="word-break:break-all">${esc(r.url)}</div></div><a class="btn ghost sm" href="${r.url}" target="_blank" rel="noopener">open</a><span onclick="removeResource('${esc(r.url).replace(/'/g,'')}')" title="remove" style="cursor:pointer;color:var(--faint);font-weight:800;margin-left:6px">×</span></div>`).join("")||'<span class="muted">no resources</span>'}</div>
+    <div class="inline" style="margin-top:8px"><div style="flex:1"><label class="fl">label</label><input id="res_label" placeholder="name"></div><div style="flex:1"><label class="fl">url</label><input id="res_url" placeholder="https://"></div><button class="btn sm" onclick="addResource()">add</button></div>`;
   const recv=EP().filter(p=>p.type==="client-receivable");
   const tbl=(rows,h)=>`<table><tr><th>${h}</th><th>status</th><th class="r">amount</th></tr>${rows.map(p=>`<tr><td>${esc(p.label)}</td><td><span class="pill st-${p.status==='paid'?'done':'todo'}">${p.status}</span></td><td class="r">${money(p.amount)}</td></tr>`).join("")}<tr><td><b>total</b></td><td></td><td class="r"><b>${money(rows.reduce((a,b)=>a+b.amount,0))}</b></td></tr></table>`;
-  $("#recv").innerHTML=tbl(recv,"client");
+  $("#recv").innerHTML='<div class="scrollbox">'+tbl(recv,"client")+'</div>';
   const crows=talentList().map(c=>{ let rate=0,paid=0,projs=[]; D.projects.forEach(p=>{ if(pCtrIds(p).includes(c.id)){ rate+=cRate(p,c); paid+=paidToContractor(p,c.id); projs.push(p.name); } }); return {name:c.name,rate,paid,owed:Math.max(rate-paid,0),projs}; }).filter(r=>r.rate>0||r.paid>0);
-  $("#pay").innerHTML=`<table><tr><th>contractor</th><th class="r">rate</th><th class="r">paid</th><th class="r">owed</th></tr>${crows.map(r=>`<tr><td>${esc(r.name)}<div class="mini">${esc(r.projs.join(', '))}</div></td><td class="r">${money(r.rate)}</td><td class="r money-out">${money(r.paid)}</td><td class="r" style="color:var(--out)"><b>${money(r.owed)}</b></td></tr>`).join("")||'<tr><td colspan="4" class="muted">no contractor obligations yet</td></tr>'}<tr><td><b>total</b></td><td class="r"><b>${money(crows.reduce((a,b)=>a+b.rate,0))}</b></td><td class="r"><b>${money(crows.reduce((a,b)=>a+b.paid,0))}</b></td><td class="r"><b>${money(crows.reduce((a,b)=>a+b.owed,0))}</b></td></tr></table>`; }
+  $("#pay").innerHTML=`<table><tr><th>contractor</th><th class="r">rate</th><th class="r">paid</th><th class="r">owed</th></tr>${crows.map(r=>`<tr><td>${esc(r.name)}<div class="mini">${esc(r.projs.join(', '))}</div></td><td class="r">${money(r.rate)}</td><td class="r money-out">${money(r.paid)}</td><td class="r" style="color:var(--out)"><b>${money(r.owed)}</b></td></tr>`).join("")||'<tr><td colspan="4" class="muted">no contractor obligations yet</td></tr>'}<tr><td><b>total</b></td><td class="r"><b>${money(crows.reduce((a,b)=>a+b.rate,0))}</b></td><td class="r"><b>${money(crows.reduce((a,b)=>a+b.paid,0))}</b></td><td class="r"><b>${money(crows.reduce((a,b)=>a+b.owed,0))}</b></td></tr></table>`; $("#pay").innerHTML='<div class="scrollbox">'+$("#pay").innerHTML+'</div>'; }
 
 /* ---- projects + drag/drop ---- */
 const STAGES=[["discovery","discovery"],["in-progress","in progress"],["pending-payment","pending payment"],["done","done"]];
@@ -539,7 +573,7 @@ function openProject(id){ window._openPid=id;
 
     <div class="split">
       <div class="box"><h5>task list</h5>
-        ${pTasks(p).map(t=>taskRow(t)).join("")||'<span class="muted">no tasks</span>'}
+        <div class="scrollbox" style="max-height:260px">${pTasks(p).map(t=>editableTaskRow(t,id)).join("")||'<span class="muted">no tasks</span>'}</div>
         <div style="margin-top:8px"><div class="inline">
           <div style="flex:2"><label class="fl">new task</label><input id="nt_title" placeholder="task" onkeydown="if(event.key==='Enter')addTask('${id}')"></div>
           <div style="flex:1"><label class="fl">due</label><input id="nt_due" type="date"></div>
@@ -561,6 +595,11 @@ function openProject(id){ window._openPid=id;
         ${p.brief?`<a class="btn ghost sm" href="${p.brief}" target="_blank">${esc(p.briefLabel||'open brief')}</a>`:`<span class="muted">${esc(p.briefLabel||'no brief attached')}</span>`}
         <span style="display:inline-block;width:8px"></span>
         <button class="btn sm" onclick="closeModal();go('docs');prefillDoc('${id}')">generate sow / rfo / invoice</button>
+      </div>
+      <div class="box fw"><h5>documents & assets <span class="mini muted">(briefs, contracts, references, files)</span></h5>
+        <div class="scrollbox" style="max-height:180px">${(OV.projDocs[p.id]||[]).map((d,i)=>`<div class="row"><span class="dot" style="background:#6a4bd6"></span><div class="t">${esc(d.label)}<div class="m" style="word-break:break-all">${esc(d.url)}</div></div><a class="btn ghost sm" href="${d.url}" target="_blank" rel="noopener">open</a><span onclick="removeProjDoc('${id}',${i})" style="cursor:pointer;color:var(--faint);font-weight:800;margin-left:6px">×</span></div>`).join("")||'<span class="muted">no documents yet</span>'}</div>
+        <div class="inline" style="margin-top:8px"><div style="flex:2"><label class="fl">add link</label><input id="pd_label" placeholder="label"></div><div style="flex:2"><label class="fl">url</label><input id="pd_url" placeholder="https:// (drive, dropbox, figma...)"></div><button class="btn sm" onclick="addProjDoc('${id}')">add</button></div>
+        <div class="inline" style="margin-top:8px"><div style="flex:1"><label class="fl">or upload a file</label><input id="pd_file" type="file"></div><button class="btn sm" onclick="uploadProjFile('${id}')">upload</button></div>
       </div>
     </div>
 
@@ -702,10 +741,10 @@ function genSchedule(pid){ const p=D.projects.find(x=>x.id===pid); if(!p)return;
 function renderTalent(){ const list=talentList();
   $("#talent").innerHTML=list.map(c=>{ const projs=D.projects.filter(p=>pCtrIds(p).includes(c.id)).map(p=>p.name);
     return `<div class="card"><h3>${esc(c.name)}</h3><p class="muted" style="font-size:12.5px">${esc(c.role)}</p>
-    <div class="chips">${c.location?`<span class="tag">${esc(c.location)}</span>`:""}${c.timezone?`<span class="tag">${esc(c.timezone)}</span>`:""}${c.contractStatus?`<span class="pill st-doing">${esc(c.contractStatus)}</span>`:""}</div>
+    <div class="chips">${c.location?`<span class="tag">${esc(c.location)}</span>`:""}${c.timezone?`<span class="tag">${esc(c.timezone)}</span>`:""}</div>
     <p style="font-size:12.5px;margin-top:8px">${esc(c.bio)||'<span class="muted">no bio yet</span>'}</p>
     ${(c.skills&&c.skills.length)?`<div class="chips">${c.skills.map(s=>`<span class="tag">${esc(s)}</span>`).join("")}</div>`:""}
-    <div class="na"><b>contract:</b> ${typeof c.rate==='number'?money(c.rate):esc(c.rate||'—')} · ${esc(c.terms||c.contractStatus||'—')}</div>
+    ${(OV.talentDocs[c.id]||[]).length?`<div class="na"><b>docs:</b> ${(OV.talentDocs[c.id]||[]).length} on file</div>`:""}
     ${(c.portfolio&&c.portfolio.length)?`<div style="margin-top:8px">${c.portfolio.map(u=>`<a class="btn ghost sm" href="${u}" target="_blank">portfolio</a> `).join("")}</div>`:""}
     <div class="chips" style="margin-top:8px">${projs.length?projs.map(n=>`<span class="tag">assigned to: ${esc(n)}</span>`).join(""):`<span class="mini muted">unassigned</span>`}</div>
     <div style="margin-top:10px"><button class="btn sm" onclick="editTalent('${c.id}')">edit profile</button>
@@ -713,25 +752,26 @@ function renderTalent(){ const list=talentList();
 function addTalent(){ const n=$("#tl_name").value.trim(); if(!n)return;
   OV.addedTalent.push({id:"ctr_"+Date.now(),name:n,role:$("#tl_role").value.trim(),location:"",timezone:"",bio:"",skills:[],portfolio:[],rate:"",terms:"",contractStatus:"new",projectIds:[]});
   save(); $("#tl_name").value=$("#tl_role").value=""; renderAll(); }
-function editTalent(id){ const c=talentById(id); if(!c)return;
-  $("#sheet").innerHTML=`<span class="x" onclick="closeModal()">×</span><h2>${esc(c.name)}</h2><p class="muted">${esc(c.role)}</p>
+function editTalent(id){ const c=talentById(id); if(!c)return; const docs=(OV.talentDocs[id]||[]); const projs=D.projects.filter(p=>pCtrIds(p).includes(c.id)).map(p=>p.name);
+  $("#sheet").innerHTML=`<span class="x" onclick="closeModal()">×</span><h2>${esc(c.name)}</h2><p class="muted">${esc(c.role||'')}</p>
+    <div class="chips" style="margin-top:6px">${projs.length?projs.map(n=>`<span class="tag">assigned to: ${esc(n)}</span>`).join(""):`<span class="mini muted">unassigned (attach on a project page)</span>`}</div>
     <div class="split">
       <div class="box"><label class="fl">name</label><input id="e_name" value="${esc(c.name)}">
         <label class="fl">role</label><input id="e_role" value="${esc(c.role||'')}">
         <label class="fl">location / where they're from</label><input id="e_loc" value="${esc(c.location||'')}">
         <label class="fl">time zone</label><input id="e_tz" value="${esc(c.timezone||'')}"></div>
-      <div class="box"><label class="fl">rate</label><input id="e_rate" value="${typeof c.rate==='number'?c.rate:esc(c.rate||'')}">
-        <label class="fl">contract terms</label><input id="e_terms" value="${esc(c.terms||'')}">
-        <label class="fl">contract status</label><input id="e_status" value="${esc(c.contractStatus||'')}"></div>
-      <div class="box fw"><label class="fl">about (who they are, specialty)</label><textarea id="e_bio">${esc(c.bio||'')}</textarea>
+      <div class="box"><label class="fl">about (who they are, specialty)</label><textarea id="e_bio" style="min-height:120px">${esc(c.bio||'')}</textarea>
         <label class="fl">skills (comma separated)</label><input id="e_skills" value="${esc((c.skills||[]).join(', '))}">
-        <label class="fl">portfolio links (one per line)</label><textarea id="e_port">${esc((c.portfolio||[]).join('\n'))}</textarea></div>
+        <label class="fl">portfolio links (one per line)</label><textarea id="e_port" style="min-height:54px">${esc((c.portfolio||[]).join('\n'))}</textarea></div>
+      <div class="box fw"><h5>talent documentation <span class="mini muted">(contracts, ndas, w9, reels, deck)</span></h5>
+        <div class="scrollbox" style="max-height:170px">${docs.map((d,i)=>`<div class="row"><span class="dot" style="background:#6a4bd6"></span><div class="t">${esc(d.label)}<div class="m" style="word-break:break-all">${esc(d.url)}</div></div><a class="btn ghost sm" href="${d.url}" target="_blank" rel="noopener">open</a><span onclick="removeTalentDoc('${id}',${i})" style="cursor:pointer;color:var(--faint);font-weight:800;margin-left:6px">×</span></div>`).join("")||'<span class="muted">no documents yet</span>'}</div>
+        <div class="inline" style="margin-top:8px"><div style="flex:2"><label class="fl">add link</label><input id="td_url" placeholder="https://"></div><button class="btn sm" onclick="addTalentDoc('${id}')">add link</button></div>
+        <div class="inline" style="margin-top:8px"><div style="flex:1"><label class="fl">or upload a file</label><input id="td_file" type="file"></div><button class="btn sm" onclick="uploadTalentFile('${id}')">upload</button></div></div>
     </div>
     <button class="btn" style="margin-top:14px" onclick="saveTalent('${id}')">save profile</button>`;
   $("#modal").classList.add("on"); }
 function saveTalent(id){ const g=s=>$(s).value;
   OV.talent[id]=Object.assign({},OV.talent[id],{ name:g("#e_name"),role:g("#e_role"),location:g("#e_loc"),timezone:g("#e_tz"),
-    rate:(g("#e_rate")&&!isNaN(Number(g("#e_rate"))))?Number(g("#e_rate")):g("#e_rate"), terms:g("#e_terms"),contractStatus:g("#e_status"),
     bio:g("#e_bio"), skills:g("#e_skills").split(",").map(s=>s.trim()).filter(Boolean), portfolio:g("#e_port").split("\n").map(s=>s.trim()).filter(Boolean) });
   save(); closeModal(); renderAll(); }
 
