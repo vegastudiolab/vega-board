@@ -340,7 +340,7 @@ const pBudget=p=>(p.id in OV.budget)?OV.budget[p.id]:(p.budget||0);
 const pDeadline=p=>OV.deadline[p.id]||p.deadline;
 const pDesc=p=>(p.id in OV.desc)?OV.desc[p.id]:(p.desc||"");
 const pHigh=p=>(p.id in (OV.highProfile||{}))?OV.highProfile[p.id]:!!p.highProfile;
-const received=x=>{ if(x.paid!=null&&x.paid!=='') return Number(x.paid)||0; return x.status==='paid'?(x.amount||0):0; };
+const received=x=>{ if(x.status==='paid') return x.amount||0; if(x.paid!=null&&x.paid!=='') return Number(x.paid)||0; return 0; };
 /* per-project contractor rate: override > project rate map > profile rate */
 const cRate=(p,c)=>{ const o=(OV.projRate[p.id]||{})[c.id]; if(o!==undefined&&o!=='') return Number(o)||0;
   const pc=(p.contractorRates||{})[c.id]; if(pc!==undefined&&pc!=='') return Number(pc)||0;
@@ -597,7 +597,7 @@ function openProject(id){ window._openPid=id;
         <button class="btn sm" onclick="closeModal();go('docs');prefillDoc('${id}')">generate sow / rfo / invoice</button>
       </div>
       <div class="box fw"><h5>documents & assets <span class="mini muted">(briefs, contracts, references, files)</span></h5>
-        <div class="scrollbox" style="max-height:180px">${(OV.projDocs[p.id]||[]).map((d,i)=>`<div class="row"><span class="dot" style="background:#6a4bd6"></span><div class="t">${esc(d.label)}<div class="m" style="word-break:break-all">${esc(d.url)}</div></div><a class="btn ghost sm" href="${d.url}" target="_blank" rel="noopener">open</a><span onclick="removeProjDoc('${id}',${i})" style="cursor:pointer;color:var(--faint);font-weight:800;margin-left:6px">×</span></div>`).join("")||'<span class="muted">no documents yet</span>'}</div>
+        <div class="scrollbox" style="max-height:180px">${(OV.projDocs[p.id]||[]).map((d,i)=>`<div class="row"><span class="dot" style="background:#6a4bd6"></span><div class="t">${esc(d.label)}</div><a class="btn ghost sm" href="${d.url}" target="_blank" rel="noopener">open</a><span onclick="removeProjDoc('${id}',${i})" style="cursor:pointer;color:var(--faint);font-weight:800;margin-left:6px">×</span></div>`).join("")||'<span class="muted">no documents yet</span>'}</div>
         <div class="inline" style="margin-top:8px"><div style="flex:2"><label class="fl">add link</label><input id="pd_label" placeholder="label"></div><div style="flex:2"><label class="fl">url</label><input id="pd_url" placeholder="https:// (drive, dropbox, figma...)"></div><button class="btn sm" onclick="addProjDoc('${id}')">add</button></div>
         <div class="inline" style="margin-top:8px"><div style="flex:1"><label class="fl">or upload a file</label><input id="pd_file" type="file"></div><button class="btn sm" onclick="uploadProjFile('${id}')">upload</button></div>
       </div>
@@ -764,7 +764,7 @@ function editTalent(id){ const c=talentById(id); if(!c)return; const docs=(OV.ta
         <label class="fl">skills (comma separated)</label><input id="e_skills" value="${esc((c.skills||[]).join(', '))}">
         <label class="fl">portfolio links (one per line)</label><textarea id="e_port" style="min-height:54px">${esc((c.portfolio||[]).join('\n'))}</textarea></div>
       <div class="box fw"><h5>talent documentation <span class="mini muted">(contracts, ndas, w9, reels, deck)</span></h5>
-        <div class="scrollbox" style="max-height:170px">${docs.map((d,i)=>`<div class="row"><span class="dot" style="background:#6a4bd6"></span><div class="t">${esc(d.label)}<div class="m" style="word-break:break-all">${esc(d.url)}</div></div><a class="btn ghost sm" href="${d.url}" target="_blank" rel="noopener">open</a><span onclick="removeTalentDoc('${id}',${i})" style="cursor:pointer;color:var(--faint);font-weight:800;margin-left:6px">×</span></div>`).join("")||'<span class="muted">no documents yet</span>'}</div>
+        <div class="scrollbox" style="max-height:170px">${docs.map((d,i)=>`<div class="row"><span class="dot" style="background:#6a4bd6"></span><div class="t">${esc(d.label)}</div><a class="btn ghost sm" href="${d.url}" target="_blank" rel="noopener">open</a><span onclick="removeTalentDoc('${id}',${i})" style="cursor:pointer;color:var(--faint);font-weight:800;margin-left:6px">×</span></div>`).join("")||'<span class="muted">no documents yet</span>'}</div>
         <div class="inline" style="margin-top:8px"><div style="flex:2"><label class="fl">add link</label><input id="td_url" placeholder="https://"></div><button class="btn sm" onclick="addTalentDoc('${id}')">add link</button></div>
         <div class="inline" style="margin-top:8px"><div style="flex:1"><label class="fl">or upload a file</label><input id="td_file" type="file"></div><button class="btn sm" onclick="uploadTalentFile('${id}')">upload</button></div></div>
     </div>
