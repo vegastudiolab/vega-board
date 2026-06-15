@@ -203,7 +203,7 @@ label.fl{font-size:12px;font-weight:600;text-transform:lowercase;display:block;m
     <div class="card" style="margin-top:16px;max-width:520px">
       <h2 class="sec" style="color:var(--ink)">add a lead</h2>
       <label class="fl">name</label><input id="l_name" placeholder="company / person">
-      <label class="fl">summary</label><input id="l_sum" placeholder="where it came from">
+      <label class="fl">what they want</label><input id="l_sum" placeholder="the ask, budget, any notes">
       <label class="fl">next action</label><input id="l_na" placeholder="what to do next">
       <button class="btn" style="margin-top:14px" onclick="addLead()">add lead</button>
       <div class="note">leads also come in when you paste an email to your pm agent. saved locally, then synced to data/vega.js via export.</div>
@@ -310,6 +310,7 @@ const $ = s=>document.querySelector(s);
 const money = n=>"$"+(Number(n)||0).toLocaleString();
 const cap = s=>(s||"").replace(/\b\w/g,c=>c.toUpperCase());
 const esc = s=>(s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const normUrl = u=>{ u=(u||"").trim(); if(!u) return ""; if(/^(https?:\/\/|mailto:|tel:)/i.test(u)) return u; return "https://"+u.replace(/^\/+/,''); };
 
 /* ---- overrides (localStorage) ---- */
 const LS="vega_overrides";
@@ -495,15 +496,15 @@ function deleteTask(ctx,id){ if(ctx==='admin'){ if((OV.addedAdminTasks||[]).some
   else { if((OV.addedTasks[ctx]||[]).some(t=>t.id===id)) OV.addedTasks[ctx]=OV.addedTasks[ctx].filter(t=>t.id!==id); else (OV.removedTasks=OV.removedTasks||[]).push(id); }
   save(); renderAll(); if(window._openPid)openProject(window._openPid); }
 function addAdminTask(){ const t=$("#adm_title").value.trim(); if(!t)return; (OV.addedAdminTasks=OV.addedAdminTasks||[]).push({id:"adm_"+Date.now(),title:t,owner:"Charles",due:$("#adm_due").value,status:"todo",priority:"medium"}); save(); renderAll(); }
-function addResource(){ const l=$("#res_label").value.trim(),u=$("#res_url").value.trim(); if(!u)return; (OV.addedResources=OV.addedResources||[]).push({label:l||u,url:u}); save(); renderAll(); }
+function addResource(){ const l=$("#res_label").value.trim(),u=normUrl($("#res_url").value); if(!u)return; (OV.addedResources=OV.addedResources||[]).push({label:l||u,url:u}); save(); renderAll(); }
 function removeResource(u){ (OV.removedResources=OV.removedResources||[]).push(u); save(); renderAll(); }
 async function uploadToStorage(file,prefix){ if(!cloudOn()) throw new Error("cloud is off"); const path=prefix+"/"+Date.now()+"_"+(file.name||"file").replace(/[^\w.-]+/g,"_");
   const r=await fetch(`${CLOUD.url}/storage/v1/object/vega-files/${path}`,{method:"POST",headers:{apikey:CLOUD.anonKey,Authorization:"Bearer "+CLOUD.anonKey,"x-upsert":"true"},body:file});
   if(!r.ok) throw new Error("upload failed ("+r.status+"). create a public bucket named vega-files in Supabase Storage."); return `${CLOUD.url}/storage/v1/object/public/vega-files/${path}`; }
-function addProjDoc(pid){ const l=$("#pd_label").value.trim(),u=$("#pd_url").value.trim(); if(!u)return; (OV.projDocs[pid]=OV.projDocs[pid]||[]).push({label:l||u,url:u}); save(); openProject(pid); }
+function addProjDoc(pid){ const l=$("#pd_label").value.trim(),u=normUrl($("#pd_url").value); if(!u)return; (OV.projDocs[pid]=OV.projDocs[pid]||[]).push({label:l||u,url:u}); save(); openProject(pid); }
 function removeProjDoc(pid,i){ (OV.projDocs[pid]||[]).splice(i,1); save(); openProject(pid); }
 async function uploadProjFile(pid){ const inp=$("#pd_file"); const f=inp&&inp.files[0]; if(!f)return; const b=event&&event.target; if(b)b.textContent="uploading..."; try{ const url=await uploadToStorage(f,"projects/"+pid); (OV.projDocs[pid]=OV.projDocs[pid]||[]).push({label:f.name,url}); save(); openProject(pid); }catch(e){ alert(String(e.message||e)); if(b)b.textContent="upload"; } }
-function addTalentDoc(id){ const u=$("#td_url").value.trim(); if(!u)return; (OV.talentDocs[id]=OV.talentDocs[id]||[]).push({label:(u.split('/').pop()||u),url:u}); save(); editTalent(id); }
+function addTalentDoc(id){ const u=normUrl($("#td_url").value); if(!u)return; (OV.talentDocs[id]=OV.talentDocs[id]||[]).push({label:(u.split('/').pop()||u),url:u}); save(); editTalent(id); }
 function removeTalentDoc(id,i){ (OV.talentDocs[id]||[]).splice(i,1); save(); editTalent(id); }
 async function uploadTalentFile(id){ const inp=$("#td_file"); const f=inp&&inp.files[0]; if(!f)return; const b=event&&event.target; if(b)b.textContent="uploading..."; try{ const url=await uploadToStorage(f,"talent/"+id); (OV.talentDocs[id]=OV.talentDocs[id]||[]).push({label:f.name,url}); save(); editTalent(id); }catch(e){ alert(String(e.message||e)); if(b)b.textContent="upload"; } }
 function renderAdmin(){
