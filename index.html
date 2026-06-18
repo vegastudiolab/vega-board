@@ -536,7 +536,8 @@ function renderKanban(){ $("#kanban").innerHTML=STAGES.map(([key,lbl])=>{
         <div class="bar"><i class="blue" style="width:${projProgress(p)}%"></i></div>
         <div class="meta"><span class="mini">${pTasks(p).filter(t=>taskState(t.id,t.status)==='done').length}/${pTasks(p).length} tasks</span>
         ${m.budget>0?`<span class="tag">${money(m.cOwed)} owed</span>`:""}
-        ${pDeadline(p)?`<span class="pill ${uClass(urgency(pDeadline(p)))}">${uLabel(pDeadline(p))}</span>`:""}</div></div>`; }).join("")
+        ${pDeadline(p)?`<span class="pill ${uClass(urgency(pDeadline(p)))}">${uLabel(pDeadline(p))}</span>`:""}</div>
+        <select onclick="event.stopPropagation()" onchange="event.stopPropagation();setStage('${p.id}',this.value)" title="move to lane" style="margin-top:8px;width:100%;font-size:11.5px;padding:6px 8px">${STAGES.map(([k,l])=>`<option value="${k}" ${pStage(p)===k?'selected':''}>▸ ${l}</option>`).join('')}</select></div>`; }).join("")
       ||`<div class="empty" style="color:rgba(255,255,255,.5);font-size:12px">drop here</div>`}</div></div>`; }).join(""); }
 let _dragPid=null,_dragMoved=0;
 function dragStart(e,pid){ _dragPid=pid; _dragMoved=Date.now(); e.dataTransfer.effectAllowed="move"; e.target.classList.add("dragging"); }
@@ -545,6 +546,7 @@ function overCol(e,on){ e.preventDefault(); e.currentTarget.classList.toggle("ov
 function dropProj(e,stage){ e.preventDefault(); e.currentTarget.classList.remove("over"); if(!_dragPid)return;
   OV.stage[_dragPid]=stage; save(); _dragMoved=Date.now(); _dragPid=null; renderKanban(); renderTabs(); }
 function cardClick(pid){ if(Date.now()-_dragMoved<250)return; openProject(pid); }
+function setStage(id,stage){ OV.stage[id]=stage; save(); _dragMoved=Date.now(); renderKanban(); renderTabs(); renderHighProfile(); renderCompleted(); if(window._openPid===id)openProject(id); }
 
 function openProject(id){ window._openPid=id;
   const p=D.projects.find(x=>x.id===id)||D.completed.find(x=>x.id===id); if(!p)return;
@@ -552,6 +554,7 @@ function openProject(id){ window._openPid=id;
   const unattached=talentList().filter(c=>!pCtrIds(p).includes(c.id));
   $("#sheet").innerHTML=`<span class="x" onclick="closeModal()">×</span>
     <span class="pill stg-${pStage(p)}">${pStage(p).replace('-',' ')}</span>
+    <select onchange="setStage('${id}',this.value)" title="change status" style="margin-left:8px;width:auto;display:inline-block;padding:5px 10px;font-size:12px">${STAGES.map(([k,l])=>`<option value="${k}" ${pStage(p)===k?'selected':''}>${l}</option>`).join('')}</select>
     <button class="btn ghost sm" onclick="toggleHigh('${id}')" style="margin-left:8px">${pHigh(p)?'★ high profile':'☆ high profile'}</button>
     <h2 style="margin-top:8px">${esc(p.name)}</h2>
     <p class="muted">${esc(p.client)}${pDeadline(p)?' · deadline '+pDeadline(p)+' ('+uLabel(pDeadline(p))+')':''}</p>
