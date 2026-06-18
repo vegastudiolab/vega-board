@@ -314,7 +314,7 @@ const normUrl = u=>{ u=(u||"").trim(); if(!u) return ""; if(/^(https?:\/\/|mailt
 
 /* ---- overrides (localStorage) ---- */
 const LS="vega_overrides";
-const OV_DEFAULTS={taskDone:{},leads:[],stage:{},budget:{},addedTasks:{},projContractors:{},timelineAdd:{},deadline:{},talent:{},addedTalent:[],payEdit:{},addedPayments:[],removedPayments:[],desc:{},detached:{},removedTalent:[],projRate:{},highProfile:{},tlEdit:{},tlRemoved:{},addedProjects:[],convertedLeads:[],candStatus:{},addedCandidates:[],scoutConfig:{},scoutRequests:[],scoutReqDone:[],taskEdit:{},removedTasks:[],addedAdminTasks:[],addedResources:[],removedResources:[],projDocs:{},talentDocs:{}};
+const OV_DEFAULTS={taskDone:{},leads:[],stage:{},budget:{},addedTasks:{},projContractors:{},timelineAdd:{},deadline:{},talent:{},addedTalent:[],payEdit:{},addedPayments:[],removedPayments:[],desc:{},detached:{},removedTalent:[],projRate:{},highProfile:{},tlEdit:{},tlRemoved:{},addedProjects:[],convertedLeads:[],candStatus:{},addedCandidates:[],scoutConfig:{},scoutRequests:[],scoutReqDone:[],taskEdit:{},removedTasks:[],addedAdminTasks:[],addedResources:[],removedResources:[],projDocs:{},talentDocs:{},removedProjects:[]};
 let OV=Object.assign({},OV_DEFAULTS,JSON.parse(localStorage.getItem(LS)||"{}"));
 /* ===== cloud sync (Supabase) — fill CLOUD to turn on; empty = localStorage only =====
    SECURITY: on a public host (GitHub Pages) the anonKey + passcode are visible in page source.
@@ -556,6 +556,7 @@ function openProject(id){ window._openPid=id;
     <span class="pill stg-${pStage(p)}">${pStage(p).replace('-',' ')}</span>
     <select onchange="setStage('${id}',this.value)" title="change status" style="margin-left:8px;width:auto;display:inline-block;padding:5px 10px;font-size:12px">${STAGES.map(([k,l])=>`<option value="${k}" ${pStage(p)===k?'selected':''}>${l}</option>`).join('')}</select>
     <button class="btn ghost sm" onclick="toggleHigh('${id}')" style="margin-left:8px">${pHigh(p)?'★ high profile':'☆ high profile'}</button>
+    <button class="btn ghost sm" onclick="deleteProject('${id}')" style="margin-left:8px;color:#c0392b">delete</button>
     <h2 style="margin-top:8px">${esc(p.name)}</h2>
     <p class="muted">${esc(p.client)}${pDeadline(p)?' · deadline '+pDeadline(p)+' ('+uLabel(pDeadline(p))+')':''}</p>
 
@@ -646,6 +647,10 @@ function genTimeline(pid){ const p=D.projects.find(x=>x.id===pid); if(!p)return;
   const phases=[['Brief intake + kickoff',0],['Discovery + styleframes',0.2],['V1 delivery',0.5],['V2 delivery',0.75],['Final delivery',1]];
   OV.timelineAdd[pid]=(OV.timelineAdd[pid]||[]).filter(n=>!n.auto).concat(phases.map(([title,f],i)=>({id:'ms_auto_'+pid+'_'+i,auto:true,title,date:at(f),status:i===0?'active':'pending'})));
   save(); openProject(pid); renderAll(); }
+function deleteProject(id){ if(!confirm('delete this project? this removes it from the board.'))return;
+  if((OV.addedProjects||[]).some(p=>p.id===id)){ OV.addedProjects=OV.addedProjects.filter(p=>p.id!==id); }
+  else { (OV.removedProjects=OV.removedProjects||[]).push(id); }
+  D.projects=D.projects.filter(p=>p.id!==id); save(); closeModal(); renderAll(); }
 function createProject(){ const name=$("#np_name").value.trim(); if(!name)return;
   const pid='proj_'+Date.now();
   const proj={id:pid,name,client:$("#np_client").value.trim()||name,stage:'discovery',highProfile:false,desc:'',budget:0,brief:'',briefLabel:'',deadline:'',contractorIds:[],contractIds:[],timeline:[],tasks:[]};
@@ -961,6 +966,7 @@ async function genDocx(){
 
 function renderAll(){ renderTabs();renderKPIs();renderHighProfile();renderUrgency();renderCalendar();renderMoney();renderLeads();renderAdmin();renderKanban();renderTalent();renderCandidates();renderScoutRequests();renderCompleted(); }
 function boot(){ (OV.addedProjects||[]).forEach(ap=>{ if(!D.projects.find(p=>p.id===ap.id)) D.projects.push(ap); });
+  if((OV.removedProjects||[]).length) D.projects=D.projects.filter(p=>!OV.removedProjects.includes(p.id));
   window._calY=TODAY.getFullYear(); window._calM=TODAY.getMonth(); window._calSel=null;
   $("#dnow").textContent=TODAY.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}).toLowerCase(); fillDocProjects(); renderAll(); }
 boot(); window._booted=true;
