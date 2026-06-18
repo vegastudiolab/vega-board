@@ -516,7 +516,7 @@ function renderAdmin(){
   $("#adminTasks").innerHTML=`<div class="scrollbox">${adminTasks.map(t=>editableTaskRow(t,'admin')).join("")||'<span class="muted">no admin tasks</span>'}</div>
     <div class="inline" style="margin-top:8px"><div style="flex:2"><label class="fl">new admin task</label><input id="adm_title" placeholder="task" onkeydown="if(event.key==='Enter')addAdminTask()"></div><div style="flex:1"><label class="fl">due</label><input id="adm_due" type="date"></div><button class="btn sm" onclick="addAdminTask()">add</button></div>`;
   const resources=[...D.admin.resources,...(OV.addedResources||[])].filter(r=>!(OV.removedResources||[]).includes(r.url));
-  $("#resources").innerHTML=`<div class="scrollbox">${resources.map(r=>`<div class="row"><span class="dot" style="background:#0077CC"></span><div class="t">${esc(r.label)}<div class="m" style="word-break:break-all">${esc(r.url)}</div></div><a class="btn ghost sm" href="${r.url}" target="_blank" rel="noopener" onclick="return openDoc(event,this.href)">open</a><span onclick="removeResource('${esc(r.url).replace(/'/g,'')}')" title="remove" style="cursor:pointer;color:var(--faint);font-weight:800;margin-left:6px">×</span></div>`).join("")||'<span class="muted">no resources</span>'}</div>
+  $("#resources").innerHTML=`<div class="scrollbox">${resources.map(r=>`<div class="row"><span class="dot" style="background:#0077CC"></span><div class="t">${esc(r.label)}<div class="m" style="word-break:break-all">${esc(r.url)}</div></div><a class="btn sm" href="${r.url}" target="_blank" rel="noopener" onclick="return openDoc(event,this.href)">open</a><span onclick="removeResource('${esc(r.url).replace(/'/g,'')}')" title="remove" style="cursor:pointer;color:var(--faint);font-weight:800;margin-left:6px">×</span></div>`).join("")||'<span class="muted">no resources</span>'}</div>
     <div class="inline" style="margin-top:8px"><div style="flex:1"><label class="fl">label</label><input id="res_label" placeholder="name"></div><div style="flex:1"><label class="fl">url</label><input id="res_url" placeholder="https://"></div><button class="btn sm" onclick="addResource()">add</button></div>`;
   const recv=EP().filter(p=>p.type==="client-receivable");
   const tbl=(rows,h)=>`<table><tr><th>${h}</th><th>status</th><th class="r">amount</th></tr>${rows.map(p=>`<tr><td>${esc(p.label)}</td><td><span class="pill st-${p.status==='paid'?'done':'todo'}">${p.status}</span></td><td class="r">${money(p.amount)}</td></tr>`).join("")}<tr><td><b>total</b></td><td></td><td class="r"><b>${money(rows.reduce((a,b)=>a+b.amount,0))}</b></td></tr></table>`;
@@ -601,12 +601,12 @@ function openProject(id){ window._openPid=id;
         ${(p.contractIds||[]).length?`<div class="chips" style="margin-top:10px">${p.contractIds.map(c=>`<span class="pill st-doing">${esc(c)}</span>`).join("")}</div>`:""}
       </div>
       <div class="box fw"><h5>brief & docs</h5>
-        ${p.brief?`<a class="btn ghost sm" href="${p.brief}" target="_blank" onclick="return openDoc(event,this.href)">${esc(p.briefLabel||'open brief')}</a>`:`<span class="muted">${esc(p.briefLabel||'no brief attached')}</span>`}
+        ${p.brief?`<a class="btn sm" href="${p.brief}" target="_blank" onclick="return openDoc(event,this.href)">${esc(p.briefLabel||'open brief')}</a>`:`<span class="muted">${esc(p.briefLabel||'no brief attached')}</span>`}
         <span style="display:inline-block;width:8px"></span>
         <button class="btn sm" onclick="closeModal();go('docs');prefillDoc('${id}')">generate sow / rfo / invoice</button>
       </div>
       <div class="box fw"><h5>documents & assets <span class="mini muted">(briefs, contracts, references, files)</span></h5>
-        <div class="scrollbox" style="max-height:180px">${(OV.projDocs[p.id]||[]).map((d,i)=>`<div class="row"><span class="dot" style="background:#6a4bd6"></span><div class="t" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.label)}</div><a class="btn ghost sm" style="flex:none" href="${d.url}" target="_blank" rel="noopener" onclick="return openDoc(event,this.href)">open</a><span onclick="removeProjDoc('${id}',${i})" style="cursor:pointer;color:var(--faint);font-weight:800;margin-left:6px">×</span></div>`).join("")||'<span class="muted">no documents yet</span>'}</div>
+        <div class="scrollbox" style="max-height:180px">${(OV.projDocs[p.id]||[]).map((d,i)=>`<div class="row"><span class="dot" style="background:#6a4bd6"></span><div class="t" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.label)}</div><a class="btn sm" style="flex:none" href="${d.url}" target="_blank" rel="noopener" onclick="return openDoc(event,this.href)">open</a><span onclick="removeProjDoc('${id}',${i})" style="cursor:pointer;color:var(--faint);font-weight:800;margin-left:6px">×</span></div>`).join("")||'<span class="muted">no documents yet</span>'}</div>
         <div class="inline" style="margin-top:8px"><div style="flex:2"><label class="fl">add link</label><input id="pd_label" placeholder="label"></div><div style="flex:2"><label class="fl">url</label><input id="pd_url" placeholder="https:// (drive, dropbox, figma...)"></div><button class="btn sm" onclick="addProjDoc('${id}')">add</button></div>
         <div class="inline" style="margin-top:8px"><div style="flex:1"><label class="fl">or upload a file</label><input id="pd_file" type="file"></div><button class="btn sm" onclick="uploadProjFile('${id}')">upload</button></div>
       </div>
@@ -758,7 +758,7 @@ function renderTalent(){ const list=talentList();
     <p style="font-size:12.5px;margin-top:8px">${esc(c.bio)||'<span class="muted">no bio yet</span>'}</p>
     ${(c.skills&&c.skills.length)?`<div class="chips">${c.skills.map(s=>`<span class="tag">${esc(s)}</span>`).join("")}</div>`:""}
     ${(OV.talentDocs[c.id]||[]).length?`<div class="na"><b>docs:</b> ${(OV.talentDocs[c.id]||[]).length} on file</div>`:""}
-    ${(c.portfolio&&c.portfolio.length)?`<div style="margin-top:8px">${c.portfolio.map(u=>`<a class="btn ghost sm" href="${u}" target="_blank" onclick="return openDoc(event,this.href)">portfolio</a> `).join("")}</div>`:""}
+    ${(c.portfolio&&c.portfolio.length)?`<div style="margin-top:8px">${c.portfolio.map(u=>`<a class="btn sm" href="${u}" target="_blank" onclick="return openDoc(event,this.href)">portfolio</a> `).join("")}</div>`:""}
     <div class="chips" style="margin-top:8px">${projs.length?projs.map(n=>`<span class="tag">assigned to: ${esc(n)}</span>`).join(""):`<span class="mini muted">unassigned</span>`}</div>
     <div style="margin-top:10px"><button class="btn sm" onclick="editTalent('${c.id}')">edit profile</button>
     <button class="btn ghost sm" onclick="removeTalent('${c.id}')">remove</button></div></div>`; }).join("")||`<div class="empty">no talent yet. add your roster below.</div>`; }
@@ -777,7 +777,7 @@ function editTalent(id){ const c=talentById(id); if(!c)return; const docs=(OV.ta
         <label class="fl">skills (comma separated)</label><input id="e_skills" value="${esc((c.skills||[]).join(', '))}">
         <label class="fl">portfolio links (one per line)</label><textarea id="e_port" style="min-height:54px">${esc((c.portfolio||[]).join('\n'))}</textarea></div>
       <div class="box fw"><h5>talent documentation <span class="mini muted">(contracts, ndas, w9, reels, deck)</span></h5>
-        <div class="scrollbox" style="max-height:170px">${docs.map((d,i)=>`<div class="row"><span class="dot" style="background:#6a4bd6"></span><div class="t" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.label)}</div><a class="btn ghost sm" style="flex:none" href="${d.url}" target="_blank" rel="noopener" onclick="return openDoc(event,this.href)">open</a><span onclick="removeTalentDoc('${id}',${i})" style="cursor:pointer;color:var(--faint);font-weight:800;margin-left:6px">×</span></div>`).join("")||'<span class="muted">no documents yet</span>'}</div>
+        <div class="scrollbox" style="max-height:170px">${docs.map((d,i)=>`<div class="row"><span class="dot" style="background:#6a4bd6"></span><div class="t" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.label)}</div><a class="btn sm" style="flex:none" href="${d.url}" target="_blank" rel="noopener" onclick="return openDoc(event,this.href)">open</a><span onclick="removeTalentDoc('${id}',${i})" style="cursor:pointer;color:var(--faint);font-weight:800;margin-left:6px">×</span></div>`).join("")||'<span class="muted">no documents yet</span>'}</div>
         <div class="inline" style="margin-top:8px"><div style="flex:2"><label class="fl">add link</label><input id="td_url" placeholder="https://"></div><button class="btn sm" onclick="addTalentDoc('${id}')">add link</button></div>
         <div class="inline" style="margin-top:8px"><div style="flex:1"><label class="fl">or upload a file</label><input id="td_file" type="file"></div><button class="btn sm" onclick="uploadTalentFile('${id}')">upload</button></div></div>
     </div>
@@ -803,7 +803,7 @@ function sBriefPanel(){ const b=sBrief(), refs=sRefs();
     <div class="note">i match scouted work against this reference. candidates with no visible portfolio work are auto-screened out.</div></div>`; }
 function candCard(c){ const sm={sourced:'p-new',contacted:'p-qualified',shortlisted:'p-won',passed:'p-lost'}[c.status]||'p-new';
   const fit=Math.max(0,Math.min(5,c.fit||0)); const stars='★'.repeat(fit)+'☆'.repeat(5-fit); const work=hasWork(c);
-  const links=(c.links||[]).map(l=>`<a class="btn ghost sm" href="${l.url}" target="_blank" onclick="return openDoc(event,this.href)">${esc(l.label)}</a>`).join(' ');
+  const links=(c.links||[]).map(l=>`<a class="btn sm" href="${l.url}" target="_blank" onclick="return openDoc(event,this.href)">${esc(l.label)}</a>`).join(' ');
   return `<div class="card" style="${work?'':'opacity:.72'}">
     <div style="display:flex;justify-content:space-between;align-items:center"><span><span class="pill ${sm}">${c.status}</span>${work?'':'<span class="pill p-lost" style="margin-left:6px">no work sample</span>'}</span><span style="color:#e8b300;font-size:13px" title="fit ${fit}/5">${stars}</span></div>
     <h3 style="margin-top:8px">${esc(c.name)}</h3>
@@ -812,7 +812,7 @@ function candCard(c){ const sm={sourced:'p-new',contacted:'p-qualified',shortlis
     <p style="font-size:12.5px;margin-top:8px">${esc(c.overview||'')}</p>
     ${c.styleMatch?`<div class="na" style="background:rgba(106,75,214,.1)"><b>style match:</b> ${esc(c.styleMatch)}</div>`:''}
     <div class="na"><b>why vega:</b> ${esc(c.whyVega||'')}</div>
-    ${(links||c.email)?`<div style="margin-top:8px">${c.email?`<a class="btn ghost sm" href="mailto:${c.email}">✉ ${esc(c.email)}</a> `:''}${links}</div>`:'<div class="mini" style="margin-top:8px;color:#c0392b">no portfolio link yet — needs a work sample to qualify</div>'}
+    ${(links||c.email)?`<div style="margin-top:8px">${c.email?`<a class="btn sm" href="mailto:${c.email}">✉ ${esc(c.email)}</a> `:''}${links}</div>`:'<div class="mini" style="margin-top:8px;color:#c0392b">no portfolio link yet — needs a work sample to qualify</div>'}
     <div class="inline" style="margin-top:10px"><div style="flex:1"><select onchange="setCandStatus('${c.id}',this.value)">${['sourced','contacted','shortlisted','passed'].map(s=>`<option ${c.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
       <button class="btn sm" onclick="promoteCandidate('${c.id}')">add to roster</button></div></div>`; }
 function renderCandidates(){ const showAll=window._showAllCands;
