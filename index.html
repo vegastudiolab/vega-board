@@ -365,9 +365,10 @@ function urgency(due,priority){ let s; const dd=daysTo(due);
   if(priority==="critical") s=Math.max(s,90); if(priority==="high"&&s<55) s=55; return s; }
 const uClass=s=>s>=90?"u-90":s>=75?"u-75":s>=55?"u-55":s>=35?"u-35":"u-15";
 function uLabel(due){ const dd=daysTo(due); if(dd===null)return "no date"; if(dd<0)return Math.abs(dd)+"d overdue"; if(dd===0)return "due today"; if(dd===1)return "due tomorrow"; return "in "+dd+"d"; }
+function adminTaskList(){ return [...D.admin.tasks,...(OV.addedAdminTasks||[])].filter(t=>!(OV.removedTasks||[]).includes(t.id)).map(t=>Object.assign({},t,(OV.taskEdit||{})[t.id]||{})); }
 function allOpenTasks(){ let o=[];
   D.projects.forEach(p=>pTasks(p).forEach(t=>{ if(taskState(t.id,t.status)!=="done") o.push({...t,project:p.name,pid:p.id}); }));
-  D.admin.tasks.forEach(t=>{ if(taskState(t.id,t.status)!=="done") o.push({...t,project:"admin",pid:null}); });
+  adminTaskList().forEach(t=>{ if(taskState(t.id,t.status)!=="done") o.push({...t,project:"admin",pid:null}); });
   return o.map(t=>({...t,u:urgency(t.due,t.priority)})).sort((a,b)=>b.u-a.u||((daysTo(a.due)??999)-(daysTo(b.due)??999))); }
 
 /* ---- money helpers ---- */
@@ -394,7 +395,7 @@ function totals(){
 
 /* ---- nav ---- */
 const SECTIONS=[["overview","command center"],["leads","leads"],["admin","admin"],["projects","projects"],["talent","talent"],["scouting","scouting"],["completed","completed"],["docs","docs"]];
-function counts(){ return { leads:leadCount(), admin:D.admin.tasks.filter(t=>taskState(t.id,t.status)!=="done").length,
+function counts(){ return { leads:leadCount(), admin:adminTaskList().filter(t=>taskState(t.id,t.status)!=="done").length,
   projects:D.projects.length, talent:talentList().length, scouting:candList().filter(c=>c.status!=='passed').length, completed:D.completed.length, overview:allOpenTasks().filter(t=>t.u>=75).length }; }
 function renderTabs(){ const c=counts();
   $("#tabs").innerHTML=SECTIONS.map(([k,lbl])=>{ const n=c[k]; const b=(n!==undefined&&k!=="docs")?`<span class="ct">${n}</span>`:"";
@@ -447,7 +448,7 @@ function calEvents(){ const ev={}; const add=(d,label,color)=>{ if(!d)return; (e
   D.projects.forEach(p=>{ const dl=pDeadline(p); if(dl) add(dl,'deadline: '+p.name,'#c0392b');
     pTasks(p).forEach(t=>{ if(t.due&&taskState(t.id,t.status)!=='done') add(t.due,t.title+' · '+p.name,'#0a6cff'); });
     pTimeline(p).forEach(m=>{ if(m.date) add(m.date,m.title+' · '+p.name,'#6a4bd6'); }); });
-  D.admin.tasks.forEach(t=>{ if(t.due&&taskState(t.id,t.status)!=='done') add(t.due,t.title+' · admin','#0a6cff'); });
+  adminTaskList().forEach(t=>{ if(t.due&&taskState(t.id,t.status)!=='done') add(t.due,t.title+' · admin','#0a6cff'); });
   EP().forEach(x=>{ if(x.due&&received(x)<(x.amount||0)){ const inn=x.type==='client-receivable'; add(x.due,x.label+(inn?' · money in':' · money out'),inn?'#119a55':'#c87a00'); } });
   [...D.leads,...OV.leads].filter(l=>!(OV.convertedLeads||[]).includes(l.id)).forEach(l=>{ if(l.due) add(l.due,'lead: '+l.name,'#0a9aa0'); });
   return ev; }
@@ -508,7 +509,7 @@ function addTalentDoc(id){ const u=normUrl($("#td_url").value); if(!u)return; (O
 function removeTalentDoc(id,i){ (OV.talentDocs[id]||[]).splice(i,1); save(); editTalent(id); }
 async function uploadTalentFile(id){ const inp=$("#td_file"); const f=inp&&inp.files[0]; if(!f)return; const b=event&&event.target; if(b)b.textContent="uploading..."; try{ const url=await uploadToStorage(f,"talent/"+id); (OV.talentDocs[id]=OV.talentDocs[id]||[]).push({label:f.name,url}); save(); editTalent(id); }catch(e){ alert(String(e.message||e)); if(b)b.textContent="upload"; } }
 function renderAdmin(){
-  const adminTasks=[...D.admin.tasks,...(OV.addedAdminTasks||[])].filter(t=>!(OV.removedTasks||[]).includes(t.id)).map(t=>Object.assign({},t,(OV.taskEdit||{})[t.id]||{}));
+  const adminTasks=adminTaskList();
   $("#adminTasks").innerHTML=`<div class="scrollbox">${adminTasks.map(t=>editableTaskRow(t,'admin')).join("")||'<span class="muted">no admin tasks</span>'}</div>
     <div class="inline" style="margin-top:8px"><div style="flex:2"><label class="fl">new admin task</label><input id="adm_title" placeholder="task" onkeydown="if(event.key==='Enter')addAdminTask()"></div><div style="flex:1"><label class="fl">due</label><input id="adm_due" type="date"></div><button class="btn sm" onclick="addAdminTask()">add</button></div>`;
   const resources=[...D.admin.resources,...(OV.addedResources||[])].filter(r=>!(OV.removedResources||[]).includes(r.url));
