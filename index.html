@@ -370,9 +370,11 @@ const uClass=s=>s>=90?"u-90":s>=75?"u-75":s>=55?"u-55":s>=35?"u-35":"u-15";
 function uLabel(due){ const dd=daysTo(due); if(dd===null)return "no date"; if(dd<0)return Math.abs(dd)+"d overdue"; if(dd===0)return "due today"; if(dd===1)return "due tomorrow"; return "in "+dd+"d"; }
 function adminTaskList(){ return [...D.admin.tasks,...(OV.addedAdminTasks||[])].filter(t=>!(OV.removedTasks||[]).includes(t.id)).map(t=>Object.assign({},t,(OV.taskEdit||{})[t.id]||{})); }
 function allOpenTasks(){ let o=[];
-  D.projects.forEach(p=>pTasks(p).forEach(t=>{ if(taskState(t.id,t.status)!=="done") o.push({...t,project:p.name,pid:p.id}); }));
-  adminTaskList().forEach(t=>{ if(taskState(t.id,t.status)!=="done") o.push({...t,project:"admin",pid:null}); });
+  D.projects.forEach(p=>{ pTasks(p).forEach(t=>{ if(taskState(t.id,t.status)!=="done") o.push({...t,project:p.name,pid:p.id,kind:'task'}); });
+    pTimeline(p).forEach(m=>{ if(m.date && (m.status||'pending')!=='done') o.push({id:m.id,title:m.title,due:m.date,project:p.name,pid:p.id,kind:'milestone'}); }); });
+  adminTaskList().forEach(t=>{ if(taskState(t.id,t.status)!=="done") o.push({...t,project:"admin",pid:null,kind:'task'}); });
   return o.map(t=>({...t,u:urgency(t.due,t.priority)})).sort((a,b)=>b.u-a.u||((daysTo(a.due)??999)-(daysTo(b.due)??999))); }
+function markUrgent(kind,pid,id,on){ if(kind==='milestone'){ setMilestone(pid,id,'status',on?'done':'pending'); } else { toggleTask(id,on); } }
 
 /* ---- money helpers ---- */
 const clientPays=D=>D; // noop guard
@@ -427,10 +429,10 @@ function renderHighProfile(){ const hp=D.projects.filter(p=>pHigh(p));
 function toggleHigh(id){ const p=D.projects.find(x=>x.id===id); if(!p)return; OV.highProfile=OV.highProfile||{}; OV.highProfile[id]=!pHigh(p); save(); if(window._openPid===id)openProject(id); renderAll(); }
 function renderUrgency(){ const t=allOpenTasks().slice(0,12);
   $("#urgency").innerHTML=t.length?t.map(x=>`<div class="row">
-    <input type="checkbox" class="check" title="mark complete" onchange="toggleTask('${x.id}',this.checked)">
+    <input type="checkbox" class="check" title="mark complete" onchange="markUrgent('${x.kind}','${x.pid}','${x.id}',this.checked)">
     <span class="pill ${uClass(x.u)}">${uLabel(x.due)}</span>
-    <div class="t">${esc(x.title)}<div style="margin-top:4px"><span class="tag">${esc(x.project)}</span></div></div>
-    ${x.pid?`<button class="btn ghost sm" onclick="openProject('${x.pid}')">open</button>`:""}
+    <div class="t">${esc(x.title)}<div style="margin-top:4px"><span class="tag">${esc(x.project)}</span>${x.kind==='milestone'?'<span class="tag" style="background:rgba(106,75,214,.14);color:#6a4bd6;margin-left:4px">milestone</span>':''}</div></div>
+    ${x.pid&&x.pid!=='null'?`<button class="btn sm" style="flex:none" onclick="openProject('${x.pid}')">open</button>`:""}
   </div>`).join(""):`<div class="empty" style="color:var(--muted)">all clear. nothing urgent.</div>`; }
 function renderMoney(){ const t=totals();
   const inPct=t.cTotal?Math.round(t.cIn/t.cTotal*100):0;
